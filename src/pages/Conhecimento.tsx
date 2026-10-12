@@ -25,13 +25,15 @@ import {
 } from '@/components/ui/sheet'
 import { useApp } from '@/context/AppContext'
 import { KnowledgeBase } from '@/types/domain'
+import { NovaFonteModal } from '@/components/knowledge/NovaFonteModal'
 
 export default function Conhecimento() {
-  const { knowledgeBases, addKnowledgeBaseDemo, agents } = useApp()
+  const { knowledgeBases, agents } = useApp()
   const outletCtx = useOutletContext<{ toggleMobileMenu?: () => void }>()
 
   const [selectedBase, setSelectedBase] = useState<KnowledgeBase | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [isNovaFonteModalOpen, setIsNovaFonteModalOpen] = useState(false)
 
   const handleOpenDetail = (base: KnowledgeBase) => {
     setSelectedBase(base)
@@ -59,7 +61,7 @@ export default function Conhecimento() {
         onToggleSidebar={outletCtx?.toggleMobileMenu}
         action={
           <Button
-            onClick={addKnowledgeBaseDemo}
+            onClick={() => setIsNovaFonteModalOpen(true)}
             className="bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl shadow-sm text-xs font-semibold gap-1.5 h-9"
           >
             <Plus className="w-4 h-4" />
@@ -188,6 +190,9 @@ export default function Conhecimento() {
             </table>
           </div>
         </div>
+
+        {/* Modal de criação de nova fonte de conhecimento */}
+        <NovaFonteModal open={isNovaFonteModalOpen} onOpenChange={setIsNovaFonteModalOpen} />
 
         {/* Side Panel (Drawer) for Knowledge Base Details */}
         <Sheet open={drawerOpen} onOpenChange={setDrawerOpen}>

@@ -19,7 +19,9 @@ import {
   Info,
   CheckCircle2,
   XCircle,
+  Plus,
 } from 'lucide-react'
+import { NovaFonteModal } from '@/components/knowledge/NovaFonteModal'
 import { Header } from '@/components/layout/Header'
 import { Stepper, StepItem } from '@/components/common/Stepper'
 import { StatusPill } from '@/components/common/StatusPill'
@@ -104,6 +106,7 @@ export default function NovoAgente() {
   const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>(
     existingAgent?.knowledgeBaseIds || [],
   )
+  const [isNovaFonteModalOpen, setIsNovaFonteModalOpen] = useState(false)
 
   // ETAPA 4: Ferramentas e Integração API (Demonstração)
   const [apiIntegrationEnabled, setApiIntegrationEnabled] = useState(
@@ -977,12 +980,22 @@ export default function NovoAgente() {
                     </Badge>
                   </div>
                   <p className="text-xs text-[#5F5F6B] mt-1">
-                    Selecione uma ou mais bases já existentes na tela Conhecimento para alimentar as
-                    respostas do agente.
+                    Selecione uma ou mais bases já existentes ou crie uma nova fonte diretamente por
+                    aqui.
                   </p>
                 </div>
-                <div className="text-xs font-medium text-[#7C5CFC] bg-[#F1EEFE] px-3 py-1.5 rounded-xl border border-[#7C5CFC]/20">
-                  {selectedKnowledgeIds.length} selecionada(s)
+                <div className="flex items-center gap-2.5">
+                  <Button
+                    type="button"
+                    onClick={() => setIsNovaFonteModalOpen(true)}
+                    className="bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl shadow-xs text-xs font-semibold gap-1.5 h-9"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Nova fonte</span>
+                  </Button>
+                  <div className="text-xs font-medium text-[#7C5CFC] bg-[#F1EEFE] px-3 py-1.5 rounded-xl border border-[#7C5CFC]/20">
+                    {selectedKnowledgeIds.length} selecionada(s)
+                  </div>
                 </div>
               </div>
 
@@ -1574,6 +1587,17 @@ export default function NovoAgente() {
           </div>
         </Card>
       </main>
+
+      {/* Modal de criação de nova fonte de conhecimento (Etapa 3) */}
+      <NovaFonteModal
+        open={isNovaFonteModalOpen}
+        onOpenChange={setIsNovaFonteModalOpen}
+        currentAgentId={existingAgent?.id}
+        onCreated={(newKb) => {
+          // Seleciona automaticamente para o agente em edição ou criação
+          setSelectedKnowledgeIds((prev) => (prev.includes(newKb.id) ? prev : [...prev, newKb.id]))
+        }}
+      />
 
       {/* Confirmation Dialog before discarding unsaved changes */}
       <AlertDialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>

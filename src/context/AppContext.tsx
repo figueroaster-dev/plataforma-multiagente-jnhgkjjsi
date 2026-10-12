@@ -30,6 +30,12 @@ interface AppContextType {
 
   knowledgeBases: KnowledgeBase[]
   addKnowledgeBaseDemo: () => void
+  createKnowledgeBase: (
+    data: Omit<KnowledgeBase, 'id' | 'updatedAt' | 'linkedAgentIds'> & {
+      id?: string
+      linkedAgentIds?: string[]
+    },
+  ) => KnowledgeBase
 
   conversations: Conversation[]
   selectedConversationId: string | null
@@ -108,6 +114,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       description:
         'Interação apenas demonstrativa; nenhum upload real é realizado neste protótipo.',
     })
+  }
+
+  const createKnowledgeBase = (
+    data: Omit<KnowledgeBase, 'id' | 'updatedAt' | 'linkedAgentIds'> & {
+      id?: string
+      linkedAgentIds?: string[]
+    },
+  ): KnowledgeBase => {
+    const newId = data.id || `kb-${Date.now().toString(36)}`
+    const now = new Date()
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const updatedAt = `Hoje às ${hours}:${minutes}`
+
+    const newKb: KnowledgeBase = {
+      id: newId,
+      name: data.name.trim(),
+      type: data.type,
+      status: data.status || 'pronto',
+      updatedAt,
+      linkedAgentIds: data.linkedAgentIds || [],
+      size: data.size,
+      description: data.description,
+      sourcesCount: data.sourcesCount ?? 1,
+      errorMessage: data.errorMessage,
+    }
+
+    setKnowledgeBases((prev) => [newKb, ...prev])
+
+    toast({
+      title: 'Fonte adicionada com sucesso!',
+      description: `A base "${newKb.name}" foi cadastrada na biblioteca de Conhecimento. (Demonstração)`,
+    })
+
+    return newKb
   }
 
   const addMessageToConversation = (convId: string, text: string) => {
@@ -220,6 +261,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         createAgent,
         knowledgeBases,
         addKnowledgeBaseDemo,
+        createKnowledgeBase,
         conversations,
         selectedConversationId,
         setSelectedConversationId,
