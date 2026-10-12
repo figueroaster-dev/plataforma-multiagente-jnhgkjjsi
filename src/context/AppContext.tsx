@@ -5,6 +5,7 @@ import {
   Agent,
   KnowledgeBase,
   Conversation,
+  ConversationStatus,
   WorkspaceUser,
 } from '@/types/domain'
 import {
@@ -43,8 +44,13 @@ interface AppContextType {
   conversations: Conversation[]
   selectedConversationId: string | null
   setSelectedConversationId: (id: string | null) => void
-  addMessageToConversation: (convId: string, text: string) => void
+  addMessageToConversation: (convId: string, text: string, senderName?: string) => void
   assignConversationAgent: (convId: string, agentId: string) => void
+  assignConversationHuman: (convId: string, humanUserId: string | null) => void
+  takeOverConversation: (convId: string) => void
+  updateConversationStatus: (convId: string, status: ConversationStatus) => void
+  addConversationTag: (convId: string, tag: string) => void
+  removeConversationTag: (convId: string, tag: string) => void
   resolveConversation: (convId: string) => void
   returnToAgent: (convId: string) => void
 
@@ -229,8 +235,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })
   }
 
-  const addMessageToConversation = (convId: string, text: string) => {
-    if (!text.trim()) return
+  const addMessageToConversation = (
+    convId: string,
+    text: string,
+    senderName = 'Marcelo Figueiroa',
+  ) => {
+    const trimmed = text.trim()
+    if (!trimmed) return
 
     const now = new Date()
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(
@@ -241,8 +252,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const newMsg = {
       id: `msg-${Date.now()}`,
       sender: 'human' as const,
-      senderName: 'Marcelo (Atendente)',
-      text,
+      senderName,
+      text: trimmed,
       timestamp: timeStr,
     }
 
@@ -251,9 +262,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (c.id === convId) {
           return {
             ...c,
-            lastMessage: text,
+            lastMessage: trimmed,
             updatedAt: 'agora',
-            status: c.status === 'resolvida' ? 'aberta' : c.status,
+            assignedHumanName: c.assignedHumanName || senderName,
             messages: [...c.messages, newMsg],
           }
         }
@@ -261,29 +272,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }),
     )
 
-    // Resposta automática simulada do cliente ou mock
-    setTimeout(() => {
-      const replyMsg = {
-        id: `reply-${Date.now()}`,
-        sender: 'user' as const,
-        senderName: conversations.find((c) => c.id === convId)?.contactName || 'Cliente',
-        text: 'Obrigado pelo retorno! Este é um retorno simulado para demonstração da interface.',
-        timestamp: timeStr,
-      }
-      setConversations((prev) =>
-        prev.map((c) => {
-          if (c.id === convId) {
-            return {
-              ...c,
-              lastMessage: replyMsg.text,
-              updatedAt: 'agora',
-              messages: [...c.messages, replyMsg],
-            }
-          }
-          return c
-        }),
-      )
-    }, 1200)
+    toast({
+      title: 'Mensagem demonstrativa adicionada',
+      description: 'Adicionada ao histórico local. Nenhuma mensagem real foi enviada.',
+    })
   }
 
   const assignConversationAgent = (convId: string, agentId: string) => {
@@ -300,30 +292,129 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       ),
     )
     toast({
-      title: 'Agente atribuído',
-      description: `Conversa atribuída a "${ag?.name || 'Agente'}" com sucesso.`,
+      title: 'Agente de IA atribuído',
+      description: `Conversa atribuída a "${ag?.name || 'Agente'}" com sucesso. (Demonstração)`,
+    })
+  }
+
+  const assignConversationHuman = (convId: string, humanUserId: string | null) => {
+    const userTarget = humanUserId ? users.find((u) => u.id === humanUserId) : null
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id === convId) {
+          return {
+            ...c,
+            assignedHumanId: userTarget ? userTarget.id : undefined,
+            assignedHumanName: userTarget ? userTarget.name : undefined,
+          }
+        }
+        return c
+      }),
+    )
+
+    if (userTarget) {
+      toast({
+        title: 'Atendente humano atribuído',
+        description: `Responsabilidade transferida para "${userTarget.name}". (Demonstração)`,
+      })
+    } else {
+      toast({
+        title: 'Atendente removido',
+        description: 'A conversa ficou sob responsabilidade autônoma do agente de IA.',
+      })
+    }
+  }
+
+  const takeOverConversation = (convId: string) => {
+    // Transfere a responsabilidade para o atendente humano logado (Marcelo Figueiroa / u-1)
+    const currentUser = users[0] || { id: 'u-1', name: 'Marcelo Figueiroa' }
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id === convId) {
+          return {
+            ...c,
+            assignedHumanId: currentUser.id,
+            assignedHumanName: currentUser.name,
+            status: c.status === 'resolvida' ? 'aberta' : c.status,
+          }
+        }
+        return c
+      }),
+    )
+    toast({
+      title: 'Atendimento assumido!',
+      description: `${currentUser.name} assumiu a responsabilidade desta conversa. (Demonstração)`,
+    })
+  }
+
+  const updateConversationStatus = (convId: string, status: ConversationStatus) => {
+    setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, status } : c)))
+    const statusLabels: Record<ConversationStatus, string> = {
+      aberta: 'Aberta (Em andamento)',
+      aguardando: 'Pendente (Aguardando)',
+      resolvida: 'Resolvida',
+    }
+    toast({
+      title: 'Status atualizado',
+      description: `Status alterado para "${statusLabels[status]}". (Demonstração)`,
+    })
+  }
+
+  const addConversationTag = (convId: string, tag: string) => {
+    const cleanTag = tag.trim()
+    if (!cleanTag) return
+
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id === convId) {
+          if (c.tags.includes(cleanTag)) return c
+          return {
+            ...c,
+            tags: [...c.tags, cleanTag],
+          }
+        }
+        return c
+      }),
+    )
+    toast({
+      title: 'Etiqueta adicionada',
+      description: `Etiqueta "${cleanTag}" vinculada à conversa.`,
+    })
+  }
+
+  const removeConversationTag = (convId: string, tagToRemove: string) => {
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id === convId) {
+          return {
+            ...c,
+            tags: c.tags.filter((t) => t !== tagToRemove),
+          }
+        }
+        return c
+      }),
+    )
+    toast({
+      title: 'Etiqueta removida',
+      description: `Etiqueta "${tagToRemove}" desvinculada.`,
     })
   }
 
   const resolveConversation = (convId: string) => {
-    setConversations((prev) =>
-      prev.map((c) => (c.id === convId ? { ...c, status: 'resolvida' } : c)),
-    )
-    toast({
-      title: 'Conversa resolvida',
-      description: 'O status do atendimento foi alterado para Resolvida.',
-    })
+    updateConversationStatus(convId, 'resolvida')
   }
 
   const returnToAgent = (convId: string) => {
     setConversations((prev) =>
       prev.map((c) =>
-        c.id === convId ? { ...c, status: 'aberta', assignedHumanName: undefined } : c,
+        c.id === convId
+          ? { ...c, status: 'aberta', assignedHumanName: undefined, assignedHumanId: undefined }
+          : c,
       ),
     )
     toast({
       title: 'Devolvido ao agente autônomo',
-      description: 'O agente de IA reassumiu as respostas desta conversa.',
+      description: 'O agente de IA reassumiu a condução automática desta conversa.',
     })
   }
 
@@ -348,6 +439,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setSelectedConversationId,
         addMessageToConversation,
         assignConversationAgent,
+        assignConversationHuman,
+        takeOverConversation,
+        updateConversationStatus,
+        addConversationTag,
+        removeConversationTag,
         resolveConversation,
         returnToAgent,
         users,

@@ -14,14 +14,26 @@ import {
   Tag,
   Phone,
   Mail,
-  MoreVertical,
-  ChevronRight,
+  Building2,
+  MapPin,
+  Calendar,
+  History,
+  Info,
+  ChevronLeft,
+  Plus,
+  X,
+  AlertCircle,
+  HelpCircle,
+  Sparkles,
+  ArrowRight,
+  SlidersHorizontal,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { StatusPill } from '@/components/common/StatusPill'
 import { EmptyState } from '@/components/common/EmptyState'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,8 +42,27 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useApp } from '@/context/AppContext'
-import { ConversationStatus } from '@/types/domain'
+import { ConversationStatus, ChannelType } from '@/types/domain'
+
+const QUICK_TAG_SUGGESTIONS = [
+  'Urgente',
+  'Orçamento',
+  'Retorno',
+  'Lead B2B',
+  'Suporte',
+  'Dúvida Técnica',
+  'Reunião Agendada',
+  'Prioridade Alta',
+]
 
 export default function Conversas() {
   const {
@@ -40,44 +71,82 @@ export default function Conversas() {
     setSelectedConversationId,
     addMessageToConversation,
     assignConversationAgent,
+    assignConversationHuman,
+    takeOverConversation,
+    updateConversationStatus,
+    addConversationTag,
+    removeConversationTag,
     resolveConversation,
     returnToAgent,
     agents,
+    users,
   } = useApp()
 
   const outletCtx = useOutletContext<{ toggleMobileMenu?: () => void }>()
 
+  // Filtros e busca
   const [search, setSearch] = useState('')
   const [filterStatus, setFilterStatus] = useState<string>('todos')
+  const [filterChannel, setFilterChannel] = useState<string>('todos')
+
+  // Mobile navigation views: 'list' | 'chat' | 'contact'
+  const [mobileView, setMobileView] = useState<'list' | 'chat' | 'contact'>('list')
+
+  // Input de mensagem
   const [inputText, setInputText] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
-  // Current active conversation
+  // Dialog de adicionar etiqueta
+  const [isAddTagOpen, setIsAddTagOpen] = useState(false)
+  const [newTagInput, setNewTagInput] = useState('')
+
+  // Conversa ativa selecionada
   const activeConversation = useMemo(() => {
     return conversations.find((c) => c.id === selectedConversationId) || conversations[0] || null
   }, [conversations, selectedConversationId])
 
-  // Filtered list
+  // Sincroniza se a conversa ativa não coincidir
+  useEffect(() => {
+    if (activeConversation && selectedConversationId !== activeConversation.id) {
+      setSelectedConversationId(activeConversation.id)
+    }
+  }, [activeConversation, selectedConversationId, setSelectedConversationId])
+
+  // Conversas filtradas
   const filteredConversations = useMemo(() => {
     return conversations.filter((c) => {
+      // Busca por nome do contato, última mensagem, tags ou conteúdo interno das mensagens
+      const query = search.toLowerCase().trim()
       const matchSearch =
-        c.contactName.toLowerCase().includes(search.toLowerCase()) ||
-        c.lastMessage.toLowerCase().includes(search.toLowerCase()) ||
-        c.tags.some((t) => t.toLowerCase().includes(search.toLowerCase()))
+        !query ||
+        c.contactName.toLowerCase().includes(query) ||
+        c.lastMessage.toLowerCase().includes(query) ||
+        c.tags.some((t) => t.toLowerCase().includes(query)) ||
+        c.messages.some((m) => m.text.toLowerCase().includes(query))
 
+      // Filtro de status: Todos, Abertas ('aberta'), Pendentes ('aguardando'), Resolvidas ('resolvida')
       const matchStatus =
         filterStatus === 'todos' || c.status === (filterStatus as ConversationStatus)
 
-      return matchSearch && matchStatus
-    })
-  }, [conversations, search, filterStatus])
+      // Filtro de canal: Todos, WhatsApp, Chat do site
+      let matchChannel = true
+      if (filterChannel === 'whatsapp') {
+        matchChannel = c.channelType === 'whatsapp'
+      } else if (filterChannel === 'webchat') {
+        matchChannel = c.channelType === 'webchat'
+      }
 
-  // Auto-scroll chat to bottom
+      return matchSearch && matchStatus && matchChannel
+    })
+  }, [conversations, search, filterStatus, filterChannel])
+
+  // Auto-scroll para a última mensagem
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeConversation?.messages])
+  }, [activeConversation?.messages?.length])
 
+  // Submissão de nova mensagem demonstrativa
   const handleSendMessage = (e?: React.FormEvent) => {
     if (e) e.preventDefault()
     if (!inputText.trim() || !activeConversation) return
@@ -86,64 +155,169 @@ export default function Conversas() {
     setInputText('')
   }
 
-  const handleFocusReply = () => {
-    inputRef.current?.focus()
+  const handleSelectConversation = (id: string) => {
+    setSelectedConversationId(id)
+    setMobileView('chat')
+  }
+
+  const handleAddCustomTag = (tagToAdd?: string) => {
+    const tag = tagToAdd || newTagInput
+    if (!tag.trim() || !activeConversation) return
+
+    addConversationTag(activeConversation.id, tag.trim())
+    setNewTagInput('')
+    setIsAddTagOpen(false)
   }
 
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden">
       <Header
-        title="Conversas"
-        subtitle="Caixa de entrada para supervisão e atendimento humano"
+        title="Caixa de entrada"
+        subtitle="Supervisão em tempo real e atendimento híbrido (IA + Humano)"
         breadcrumbs={[{ label: 'Início', href: '/' }, { label: 'Conversas' }]}
         onToggleSidebar={outletCtx?.toggleMobileMenu}
+        action={
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-[#7C5CFC]/10 text-[#7C5CFC] border border-[#7C5CFC]/20">
+              <Sparkles className="w-3.5 h-3.5" />
+              Demonstração Interativa
+            </span>
+          </div>
+        }
       />
 
-      {/* 3-Column Inbox Layout Container */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-white">
-        {/* COLUMN 1: Conversation List (Left Panel, 340px) */}
-        <div className="w-full lg:w-[360px] border-r border-[#E5E5EC] flex flex-col h-full shrink-0 bg-[#FAF9FD]">
+      {/* Faixa global discreta informativa sobre ambiente demonstrativo */}
+      <div className="bg-[#FAF9FD] border-b border-[#E5E5EC] px-4 py-1.5 flex items-center justify-between text-xs text-[#5F5F6B] shrink-0">
+        <div className="flex items-center gap-2 truncate">
+          <Info className="w-3.5 h-3.5 text-[#7C5CFC] shrink-0" />
+          <span className="truncate">
+            <strong>Ambiente de Demonstração:</strong> Todas as conversas, agentes e respostas
+            operam no navegador. Nenhuma mensagem é disparada a clientes reais.
+          </span>
+        </div>
+        <Badge
+          variant="outline"
+          className="border-[#7C5CFC]/30 text-[#7C5CFC] bg-white text-[10px] shrink-0 font-medium"
+        >
+          Demonstração
+        </Badge>
+      </div>
+
+      {/* Layout Principal 3 Colunas com suporte Responsivo */}
+      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden bg-white relative">
+        {/* ========================================================= */}
+        {/* COLUNA 1: Lista de conversas (340px - 380px)              */}
+        {/* ========================================================= */}
+        <div
+          className={`w-full lg:w-[360px] xl:w-[380px] border-r border-[#E5E5EC] flex flex-col h-full shrink-0 bg-[#FAF9FD] ${
+            mobileView === 'list' ? 'flex' : 'hidden lg:flex'
+          }`}
+        >
           {/* Top Search & Filter Bar */}
-          <div className="p-3.5 border-b border-[#E5E5EC] space-y-2.5 bg-white">
+          <div className="p-3.5 border-b border-[#E5E5EC] space-y-2.5 bg-white shrink-0">
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-[#9B9BAD]" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar conversa ou cliente..."
-                className="pl-9 text-xs rounded-xl border-[#E5E5EC] bg-[#F7F7FB] h-8 focus-visible:ring-[#7C5CFC]"
+                placeholder="Buscar por contato, mensagem ou tag..."
+                className="pl-9 text-xs rounded-xl border-[#E5E5EC] bg-[#F7F7FB] h-9 focus-visible:ring-[#7C5CFC]"
               />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[#9B9BAD] hover:text-[#1A1A24]"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
 
-            {/* Filter pills */}
-            <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
-              {[
-                { id: 'todos', label: 'Todas' },
-                { id: 'aguardando', label: 'Aguardando' },
-                { id: 'aberta', label: 'Em andamento' },
-                { id: 'resolvida', label: 'Resolvidas' },
-              ].map((f) => (
-                <button
-                  key={f.id}
-                  type="button"
-                  onClick={() => setFilterStatus(f.id)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                    filterStatus === f.id
-                      ? 'bg-[#7C5CFC] text-white shadow-sm'
-                      : 'bg-white text-[#5F5F6B] hover:bg-slate-100 border border-[#E5E5EC]'
-                  }`}
-                >
-                  {f.label}
-                </button>
-              ))}
+            {/* Filtros por Status */}
+            <div>
+              <div className="text-[10px] font-semibold text-[#9B9BAD] uppercase tracking-wider mb-1.5 flex items-center justify-between">
+                <span>Filtrar por Status</span>
+                <span className="text-[10px] text-[#5F5F6B] font-normal">
+                  {filteredConversations.length}{' '}
+                  {filteredConversations.length === 1 ? 'conversa' : 'conversas'}
+                </span>
+              </div>
+              <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+                {[
+                  { id: 'todos', label: 'Todas' },
+                  { id: 'aberta', label: 'Abertas' },
+                  { id: 'aguardando', label: 'Pendentes' },
+                  { id: 'resolvida', label: 'Resolvidas' },
+                ].map((f) => (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => setFilterStatus(f.id)}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                      filterStatus === f.id
+                        ? 'bg-[#7C5CFC] text-white shadow-xs font-semibold'
+                        : 'bg-[#F7F7FB] text-[#5F5F6B] hover:bg-slate-200/70 border border-[#E5E5EC]'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filtro por Canal */}
+            <div>
+              <div className="text-[10px] font-semibold text-[#9B9BAD] uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                <SlidersHorizontal className="w-3 h-3" />
+                <span>Canal</span>
+              </div>
+              <div className="grid grid-cols-3 gap-1">
+                {[
+                  { id: 'todos', label: 'Todos' },
+                  { id: 'whatsapp', label: 'WhatsApp' },
+                  { id: 'webchat', label: 'Chat do site' },
+                ].map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setFilterChannel(c.id)}
+                    className={`px-2 py-1 rounded-lg text-[11px] font-medium text-center truncate transition-all ${
+                      filterChannel === c.id
+                        ? 'bg-[#1A1A24] text-white font-semibold'
+                        : 'bg-[#F7F7FB] text-[#5F5F6B] hover:bg-slate-200/70 border border-[#E5E5EC]'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Conversation Items List */}
+          {/* Lista de Itens de Conversa */}
           <div className="flex-1 overflow-y-auto divide-y divide-[#E5E5EC]/60">
             {filteredConversations.length === 0 ? (
-              <div className="p-8 text-center text-xs text-[#9B9BAD]">
-                Nenhuma conversa encontrada neste filtro.
+              <div className="p-8 text-center space-y-2">
+                <AlertCircle className="w-8 h-8 text-[#9B9BAD] mx-auto stroke-1" />
+                <p className="text-xs font-medium text-[#1A1A24]">Nenhuma conversa encontrada</p>
+                <p className="text-[11px] text-[#9B9BAD] max-w-[200px] mx-auto">
+                  Ajuste o termo de busca ou altere os filtros de status e canal.
+                </p>
+                {(search || filterStatus !== 'todos' || filterChannel !== 'todos') && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSearch('')
+                      setFilterStatus('todos')
+                      setFilterChannel('todos')
+                    }}
+                    className="text-xs mt-2 rounded-xl border-[#E5E5EC]"
+                  >
+                    Limpar filtros
+                  </Button>
+                )}
               </div>
             ) : (
               filteredConversations.map((conv) => {
@@ -151,30 +325,86 @@ export default function Conversas() {
                 return (
                   <div
                     key={conv.id}
-                    onClick={() => setSelectedConversationId(conv.id)}
+                    onClick={() => handleSelectConversation(conv.id)}
                     className={`p-3.5 transition-all cursor-pointer flex flex-col gap-1.5 ${
                       isSelected
-                        ? 'bg-white border-l-4 border-l-[#7C5CFC] shadow-sm'
-                        : 'hover:bg-white/80'
+                        ? 'bg-white border-l-4 border-l-[#7C5CFC] shadow-xs'
+                        : 'hover:bg-white/70'
                     }`}
                   >
+                    {/* Top row: Nome + Horário */}
                     <div className="flex items-center justify-between gap-2">
-                      <span className="font-semibold text-xs text-[#1A1A24] truncate">
-                        {conv.contactName}
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-6 h-6 rounded-full bg-[#F1EEFE] text-[#7C5CFC] flex items-center justify-center font-bold text-[10px] shrink-0">
+                          {conv.contactName.substring(0, 2).toUpperCase()}
+                        </div>
+                        <span className="font-semibold text-xs text-[#1A1A24] truncate">
+                          {conv.contactName}
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-[#9B9BAD] shrink-0 flex items-center gap-1">
+                        <Clock className="w-2.5 h-2.5" />
+                        {conv.updatedAt}
                       </span>
-                      <span className="text-[10px] text-[#9B9BAD] shrink-0">{conv.updatedAt}</span>
                     </div>
 
-                    <p className="text-xs text-[#5F5F6B] line-clamp-1 leading-snug">
+                    {/* Preview da última mensagem */}
+                    <p className="text-xs text-[#5F5F6B] line-clamp-2 leading-relaxed">
                       {conv.lastMessage}
                     </p>
 
-                    <div className="flex items-center justify-between gap-1 mt-1 pt-1">
-                      <div className="flex items-center gap-1 text-[10px] text-[#5F5F6B]">
-                        <Radio className="w-3 h-3 text-[#7C5CFC]" />
-                        <span>{conv.channel}</span>
+                    {/* Tags preview */}
+                    {conv.tags && conv.tags.length > 0 && (
+                      <div className="flex items-center gap-1 overflow-hidden mt-0.5">
+                        {conv.tags.slice(0, 2).map((t, idx) => (
+                          <span
+                            key={idx}
+                            className="text-[9px] px-1.5 py-0.5 rounded bg-[#F1EEFE] text-[#7C5CFC] font-medium truncate max-w-[100px]"
+                          >
+                            {t}
+                          </span>
+                        ))}
+                        {conv.tags.length > 2 && (
+                          <span className="text-[9px] text-[#9B9BAD]">+{conv.tags.length - 2}</span>
+                        )}
                       </div>
-                      <StatusPill status={conv.status} size="sm" />
+                    )}
+
+                    {/* Rodapé do card: Canal + Atribuição + Status */}
+                    <div className="flex items-center justify-between gap-1.5 mt-1 pt-1.5 border-t border-[#E5E5EC]/50 text-[10px]">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-white border border-[#E5E5EC] text-[#5F5F6B] font-medium shrink-0">
+                          <Radio className="w-2.5 h-2.5 text-[#7C5CFC]" />
+                          {conv.channel}
+                        </span>
+
+                        {/* Atendente ou Agente */}
+                        <span className="text-[#5F5F6B] truncate">
+                          {conv.assignedHumanName ? (
+                            <span className="text-emerald-700 font-medium inline-flex items-center gap-0.5">
+                              <UserCheck className="w-2.5 h-2.5" />
+                              {conv.assignedHumanName.split(' ')[0]}
+                            </span>
+                          ) : (
+                            <span className="text-[#7C5CFC] inline-flex items-center gap-0.5">
+                              <Bot className="w-2.5 h-2.5" />
+                              {conv.assignedAgentName.split(' ')[0]}
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      <StatusPill
+                        status={conv.status}
+                        size="sm"
+                        label={
+                          conv.status === 'aberta'
+                            ? 'Aberta'
+                            : conv.status === 'aguardando'
+                              ? 'Pendente'
+                              : 'Resolvida'
+                        }
+                      />
                     </div>
                   </div>
                 )
@@ -183,45 +413,113 @@ export default function Conversas() {
           </div>
         </div>
 
-        {/* COLUMN 2: Selected Conversation Thread (Center Panel) */}
+        {/* ========================================================= */}
+        {/* COLUNA 2: Histórico e Resposta (Painel Central)            */}
+        {/* ========================================================= */}
         {activeConversation ? (
-          <div className="flex-1 flex flex-col h-full bg-[#F7F7FB] border-r border-[#E5E5EC] overflow-hidden">
-            {/* Thread Header */}
-            <div className="p-3.5 bg-white border-b border-[#E5E5EC] flex items-center justify-between gap-3 shadow-xs">
+          <div
+            className={`flex-1 flex flex-col h-full bg-[#F7F7FB] border-r border-[#E5E5EC] overflow-hidden ${
+              mobileView === 'chat' ? 'flex' : 'hidden lg:flex'
+            }`}
+          >
+            {/* Header da Conversa */}
+            <div className="p-3 sm:p-3.5 bg-white border-b border-[#E5E5EC] flex flex-wrap items-center justify-between gap-2.5 shadow-xs shrink-0">
               <div className="flex items-center gap-2.5 min-w-0">
+                {/* Botão voltar para a lista em mobile */}
+                <button
+                  type="button"
+                  onClick={() => setMobileView('list')}
+                  className="lg:hidden p-1.5 rounded-lg border border-[#E5E5EC] text-[#5F5F6B] hover:text-[#1A1A24] hover:bg-slate-100"
+                  aria-label="Voltar para a lista de conversas"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+
                 <div className="w-9 h-9 rounded-full bg-[#F1EEFE] text-[#7C5CFC] flex items-center justify-center font-bold text-xs shrink-0">
                   {activeConversation.contactName.substring(0, 2).toUpperCase()}
                 </div>
+
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <h3 className="text-sm font-bold text-[#1A1A24] truncate">
                       {activeConversation.contactName}
                     </h3>
-                    <StatusPill status={activeConversation.status} size="sm" />
+                    <StatusPill
+                      status={activeConversation.status}
+                      size="sm"
+                      label={
+                        activeConversation.status === 'aberta'
+                          ? 'Aberta'
+                          : activeConversation.status === 'aguardando'
+                            ? 'Pendente'
+                            : 'Resolvida'
+                      }
+                    />
                   </div>
-                  <div className="text-[11px] text-[#5F5F6B] flex items-center gap-1.5 truncate">
-                    <span>{activeConversation.channel}</span>
-                    <span>•</span>
-                    <span>
-                      Agente: <strong>{activeConversation.assignedAgentName}</strong>
+
+                  {/* Detalhes de canal e atribuição ativa */}
+                  <div className="text-[11px] text-[#5F5F6B] flex items-center gap-2 flex-wrap">
+                    <span className="inline-flex items-center gap-1 font-medium text-[#1A1A24]">
+                      <Radio className="w-3 h-3 text-[#7C5CFC]" />
+                      {activeConversation.channel}
                     </span>
+                    <span>•</span>
+                    <span className="truncate">
+                      Agente IA:{' '}
+                      <strong className="text-[#1A1A24] font-medium">
+                        {activeConversation.assignedAgentName}
+                      </strong>
+                    </span>
+                    {activeConversation.assignedHumanName && (
+                      <>
+                        <span>•</span>
+                        <span className="text-emerald-700 font-semibold truncate inline-flex items-center gap-1">
+                          <UserCheck className="w-3 h-3 text-emerald-600" />
+                          {activeConversation.assignedHumanName}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons Header */}
-              <div className="flex items-center gap-1.5">
+              {/* Ações do cabeçalho da conversa */}
+              <div className="flex items-center gap-1.5 shrink-0 ml-auto sm:ml-0">
+                {/* Botão para ver painel do contato no mobile */}
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={handleFocusReply}
-                  className="rounded-xl border-[#E5E5EC] text-xs h-8 px-2.5 hidden sm:flex items-center gap-1"
+                  onClick={() => setMobileView('contact')}
+                  className="lg:hidden rounded-xl border-[#E5E5EC] text-xs h-8 px-2.5"
                 >
-                  <MessageSquare className="w-3.5 h-3.5 text-[#7C5CFC]" />
-                  <span>Responder</span>
+                  <User className="w-3.5 h-3.5 text-[#5F5F6B]" />
+                  <span>Contato</span>
                 </Button>
 
-                {/* Dropdown Atribuir */}
+                {/* Ação Demonstrativa "Assumir atendimento" */}
+                {!activeConversation.assignedHumanName ? (
+                  <Button
+                    size="sm"
+                    onClick={() => takeOverConversation(activeConversation.id)}
+                    className="bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl text-xs h-8 px-3 font-semibold flex items-center gap-1.5 shadow-xs"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Assumir atendimento</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => returnToAgent(activeConversation.id)}
+                    className="rounded-xl border-[#7C5CFC]/30 text-[#7C5CFC] hover:bg-[#F1EEFE] text-xs h-8 px-2.5 flex items-center gap-1"
+                    title="Devolve as respostas automáticas ao agente de IA"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Devolver à IA</span>
+                  </Button>
+                )}
+
+                {/* Dropdown Atribuição */}
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
@@ -229,108 +527,196 @@ export default function Conversas() {
                       size="sm"
                       className="rounded-xl border-[#E5E5EC] text-xs h-8 px-2.5 flex items-center gap-1"
                     >
-                      <UserCheck className="w-3.5 h-3.5 text-[#5F5F6B]" />
+                      <User className="w-3.5 h-3.5 text-[#5F5F6B]" />
                       <span className="hidden sm:inline">Atribuir</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent
                     align="end"
-                    className="w-56 bg-white border border-[#E5E5EC] rounded-xl shadow-lg"
+                    className="w-64 bg-white border border-[#E5E5EC] rounded-xl shadow-lg p-1.5"
                   >
-                    <DropdownMenuLabel className="text-xs text-[#9B9BAD]">
-                      Atribuir a outro agente
+                    <DropdownMenuLabel className="text-[11px] font-semibold text-[#9B9BAD] uppercase tracking-wider px-2 py-1">
+                      Agente de IA Responsável
                     </DropdownMenuLabel>
-                    <DropdownMenuSeparator />
                     {agents.map((ag) => (
                       <DropdownMenuItem
                         key={ag.id}
                         onClick={() => assignConversationAgent(activeConversation.id, ag.id)}
-                        className="text-xs cursor-pointer"
+                        className={`text-xs cursor-pointer flex items-center justify-between rounded-lg px-2 py-1.5 ${
+                          activeConversation.assignedAgentId === ag.id
+                            ? 'bg-[#F1EEFE] text-[#7C5CFC] font-semibold'
+                            : ''
+                        }`}
                       >
-                        {ag.name} ({ag.purpose})
+                        <div className="flex items-center gap-2">
+                          <Bot className="w-3.5 h-3.5 text-[#7C5CFC]" />
+                          <span>{ag.name}</span>
+                        </div>
+                        <span className="text-[10px] text-[#9B9BAD]">{ag.purpose}</span>
+                      </DropdownMenuItem>
+                    ))}
+
+                    <DropdownMenuSeparator className="my-1.5 bg-[#E5E5EC]" />
+
+                    <DropdownMenuLabel className="text-[11px] font-semibold text-[#9B9BAD] uppercase tracking-wider px-2 py-1">
+                      Atendente Humano
+                    </DropdownMenuLabel>
+                    <DropdownMenuItem
+                      onClick={() => assignConversationHuman(activeConversation.id, null)}
+                      className="text-xs cursor-pointer rounded-lg px-2 py-1.5 text-[#5F5F6B]"
+                    >
+                      <span>Nenhum (somente IA autônoma)</span>
+                    </DropdownMenuItem>
+                    {users.map((u) => (
+                      <DropdownMenuItem
+                        key={u.id}
+                        onClick={() => assignConversationHuman(activeConversation.id, u.id)}
+                        className={`text-xs cursor-pointer flex items-center justify-between rounded-lg px-2 py-1.5 ${
+                          activeConversation.assignedHumanId === u.id
+                            ? 'bg-emerald-50 text-emerald-800 font-semibold'
+                            : ''
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>{u.name}</span>
+                        </div>
+                        <span className="text-[10px] text-[#9B9BAD]">{u.role}</span>
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuContent>
                 </DropdownMenu>
 
-                {/* Devolver ao Agente (se em atendimento humano) */}
-                {activeConversation.status === 'aguardando' && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => returnToAgent(activeConversation.id)}
-                    className="rounded-xl border-[#7C5CFC]/30 text-[#7C5CFC] hover:bg-[#F1EEFE] text-xs h-8 px-2.5 flex items-center gap-1"
+                {/* Dropdown Alterar Status */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl border-[#E5E5EC] text-xs h-8 px-2.5 flex items-center gap-1"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#5F5F6B]" />
+                      <span className="hidden sm:inline">Status</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    className="w-48 bg-white border border-[#E5E5EC] rounded-xl shadow-lg p-1.5"
                   >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span className="hidden sm:inline">Devolver ao agente</span>
-                  </Button>
-                )}
-
-                {/* Resolver */}
-                {activeConversation.status !== 'resolvida' ? (
-                  <Button
-                    size="sm"
-                    onClick={() => resolveConversation(activeConversation.id)}
-                    className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs h-8 px-3 flex items-center gap-1"
-                  >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Resolver</span>
-                  </Button>
-                ) : (
-                  <span className="text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md">
-                    Encerrada
-                  </span>
-                )}
+                    <DropdownMenuLabel className="text-[11px] font-semibold text-[#9B9BAD] uppercase tracking-wider px-2 py-1">
+                      Mudar Status
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator className="my-1 bg-[#E5E5EC]" />
+                    <DropdownMenuItem
+                      onClick={() => updateConversationStatus(activeConversation.id, 'aberta')}
+                      className={`text-xs cursor-pointer rounded-lg px-2 py-1.5 ${
+                        activeConversation.status === 'aberta'
+                          ? 'bg-violet-50 text-violet-700 font-semibold'
+                          : ''
+                      }`}
+                    >
+                      Aberta (Em andamento)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => updateConversationStatus(activeConversation.id, 'aguardando')}
+                      className={`text-xs cursor-pointer rounded-lg px-2 py-1.5 ${
+                        activeConversation.status === 'aguardando'
+                          ? 'bg-amber-50 text-amber-800 font-semibold'
+                          : ''
+                      }`}
+                    >
+                      Pendente (Aguardando)
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => updateConversationStatus(activeConversation.id, 'resolvida')}
+                      className={`text-xs cursor-pointer rounded-lg px-2 py-1.5 ${
+                        activeConversation.status === 'resolvida'
+                          ? 'bg-emerald-50 text-emerald-700 font-semibold'
+                          : ''
+                      }`}
+                    >
+                      Resolvida (Concluída)
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
 
-            {/* Chat Messages Stream */}
-            <div className="flex-1 p-4 overflow-y-auto space-y-3.5">
-              <div className="text-center my-2">
-                <span className="text-[10px] text-[#9B9BAD] bg-white border border-[#E5E5EC] px-2.5 py-0.5 rounded-full">
-                  Atendimento iniciado via {activeConversation.channel}
+            {/* Aviso demonstrativo em destaque sutil acima da conversa */}
+            <div className="bg-amber-50/70 border-b border-amber-200/50 px-4 py-2 flex items-center justify-between text-[11px] text-amber-900 shrink-0">
+              <div className="flex items-center gap-1.5">
+                <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                <span>
+                  <strong>Aviso demonstrativo:</strong> As mensagens enviadas abaixo ficam salvas
+                  localmente e não são entregues a clientes reais.
+                </span>
+              </div>
+              <span className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-amber-200/60 text-amber-900">
+                Mock Local
+              </span>
+            </div>
+
+            {/* Fluxo de Mensagens */}
+            <div className="flex-1 p-4 sm:p-5 overflow-y-auto space-y-4">
+              <div className="text-center my-1">
+                <span className="text-[10px] text-[#9B9BAD] bg-white border border-[#E5E5EC] px-3 py-1 rounded-full shadow-xs">
+                  Atendimento iniciado via {activeConversation.channel} • Histórico demonstrativo
                 </span>
               </div>
 
               {activeConversation.messages.map((m) => {
                 const isUser = m.sender === 'user'
-                const isHumanOperator = m.sender === 'human'
+                const isHuman = m.sender === 'human'
+                const isAgent = m.sender === 'agent'
 
                 return (
                   <div
                     key={m.id}
                     className={`flex flex-col ${isUser ? 'items-start' : 'items-end'}`}
                   >
+                    {/* Cabeçalho da bolha de mensagem */}
                     <div className="flex items-center gap-1.5 mb-1 text-[11px] text-[#9B9BAD]">
                       {isUser ? (
                         <>
-                          <User className="w-3 h-3" />
-                          <span className="font-medium text-[#1A1A24]">{m.senderName}</span>
+                          <div className="w-4 h-4 rounded-full bg-slate-200 text-slate-700 flex items-center justify-center font-bold text-[9px]">
+                            {m.senderName.charAt(0)}
+                          </div>
+                          <span className="font-semibold text-[#1A1A24]">{m.senderName}</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 border border-slate-200">
+                            Cliente
+                          </span>
                         </>
-                      ) : isHumanOperator ? (
+                      ) : isHuman ? (
                         <>
-                          <span className="font-semibold text-emerald-700">Operador Humano</span>
-                          <UserCheck className="w-3 h-3 text-emerald-600" />
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800 font-semibold border border-emerald-200">
+                            Atendente Humano
+                          </span>
+                          <span className="font-semibold text-emerald-800">{m.senderName}</span>
+                          <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
                         </>
                       ) : (
                         <>
-                          <span className="font-medium text-[#7C5CFC]">{m.senderName}</span>
-                          <Bot className="w-3 h-3 text-[#7C5CFC]" />
+                          <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#F1EEFE] text-[#7C5CFC] font-semibold border border-[#7C5CFC]/30">
+                            Agente de IA
+                          </span>
+                          <span className="font-semibold text-[#7C5CFC]">{m.senderName}</span>
+                          <Bot className="w-3.5 h-3.5 text-[#7C5CFC]" />
                         </>
                       )}
                       <span>• {m.timestamp}</span>
                     </div>
 
+                    {/* Conteúdo da bolha com estilo diferenciado por remetente */}
                     <div
-                      className={`max-w-[80%] rounded-2xl p-3.5 text-xs leading-relaxed shadow-xs ${
+                      className={`max-w-[85%] sm:max-w-[75%] rounded-2xl p-3.5 text-xs leading-relaxed shadow-xs ${
                         isUser
                           ? 'bg-white text-[#1A1A24] border border-[#E5E5EC] rounded-tl-none'
-                          : isHumanOperator
+                          : isHuman
                             ? 'bg-emerald-700 text-white rounded-tr-none'
                             : 'bg-[#7C5CFC] text-white rounded-tr-none'
                       }`}
                     >
-                      {m.text}
+                      <p className="whitespace-pre-wrap">{m.text}</p>
                     </div>
                   </div>
                 )
@@ -338,108 +724,341 @@ export default function Conversas() {
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Response Input Box */}
+            {/* Caixa de Entrada e Envio */}
             <form
               onSubmit={handleSendMessage}
-              className="p-3 bg-white border-t border-[#E5E5EC] flex items-center gap-2"
+              className="p-3 sm:p-3.5 bg-white border-t border-[#E5E5EC] flex flex-col gap-2 shrink-0"
             >
-              <Input
-                ref={inputRef}
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="Escreva uma resposta humana ou nota interna..."
-                className="text-xs rounded-xl border-[#E5E5EC] focus-visible:ring-[#7C5CFC] h-9"
-              />
-              <Button
-                type="submit"
-                size="sm"
-                className="bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl h-9 px-4 shrink-0 font-semibold text-xs gap-1.5"
-              >
-                <span>Enviar</span>
-                <Send className="w-3.5 h-3.5" />
-              </Button>
+              <div className="flex items-center gap-2">
+                <Input
+                  ref={inputRef}
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  placeholder="Escreva uma resposta humana demonstrativa..."
+                  className="text-xs rounded-xl border-[#E5E5EC] bg-[#F7F7FB] focus-visible:ring-[#7C5CFC] h-10 flex-1"
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  disabled={!inputText.trim()}
+                  className="bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl h-10 px-4 shrink-0 font-semibold text-xs gap-1.5 shadow-xs disabled:opacity-50"
+                >
+                  <span>Enviar</span>
+                  <Send className="w-3.5 h-3.5" />
+                </Button>
+              </div>
+
+              <div className="flex items-center justify-between text-[11px] text-[#9B9BAD] px-1">
+                <span>Pressione Enter para enviar para o histórico local</span>
+                <span className="text-[#7C5CFC] font-medium hidden sm:inline">
+                  Atuando como:{' '}
+                  {activeConversation.assignedHumanName || 'Marcelo Figueiroa (Atendente)'}
+                </span>
+              </div>
             </form>
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center p-8 bg-[#F7F7FB]">
+          <div
+            className={`flex-1 flex items-center justify-center p-8 bg-[#F7F7FB] ${
+              mobileView === 'chat' ? 'flex' : 'hidden lg:flex'
+            }`}
+          >
             <EmptyState
               icon={MessageSquare}
               title="Selecione uma conversa"
-              description="Escolha uma conversa na lista ao lado para inspecionar as mensagens e intervir como operador."
+              description="Escolha uma conversa na lista para acompanhar o histórico, intervir com atendimento humano ou alterar atribuições."
             />
           </div>
         )}
 
-        {/* COLUMN 3: Contact & Agent Side Panel (Right Panel, 280px) */}
+        {/* ========================================================= */}
+        {/* COLUNA 3: Painel do Contato (Direita, 300px)               */}
+        {/* ========================================================= */}
         {activeConversation && (
-          <div className="w-full lg:w-[280px] border-l border-[#E5E5EC] bg-white p-4 flex flex-col space-y-4 shrink-0 overflow-y-auto">
-            <div>
-              <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-2">
-                Dados do Contato
-              </h4>
-              <div className="p-3 rounded-xl bg-[#FAF9FD] border border-[#E5E5EC] space-y-2 text-xs">
-                <div className="font-semibold text-sm text-[#1A1A24]">
-                  {activeConversation.contactName}
-                </div>
-                <div className="flex items-center gap-2 text-[#5F5F6B]">
-                  <Phone className="w-3.5 h-3.5 text-[#9B9BAD]" />
-                  <span>{activeConversation.contactPhoneOrEmail}</span>
-                </div>
-                <div className="flex items-center gap-2 text-[#5F5F6B]">
-                  <Radio className="w-3.5 h-3.5 text-[#9B9BAD]" />
-                  <span>{activeConversation.channel}</span>
-                </div>
-              </div>
+          <div
+            className={`w-full lg:w-[300px] xl:w-[320px] border-l border-[#E5E5EC] bg-white p-4 sm:p-5 flex flex-col space-y-4 shrink-0 overflow-y-auto ${
+              mobileView === 'contact' ? 'flex' : 'hidden lg:flex'
+            }`}
+          >
+            {/* Botão voltar para o chat no mobile */}
+            <div className="lg:hidden flex items-center justify-between pb-2 border-b border-[#E5E5EC]">
+              <button
+                type="button"
+                onClick={() => setMobileView('chat')}
+                className="flex items-center gap-1 text-xs font-semibold text-[#7C5CFC]"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                Voltar à conversa
+              </button>
+              <Badge variant="outline" className="text-[10px] border-[#7C5CFC]/30 text-[#7C5CFC]">
+                Demonstração
+              </Badge>
             </div>
 
-            {/* Tags */}
-            <div>
-              <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <Tag className="w-3.5 h-3.5 text-[#7C5CFC]" /> Tags do Cliente
+            {/* Cabeçalho do painel */}
+            <div className="flex items-center justify-between">
+              <h4 className="text-xs font-bold text-[#1A1A24] uppercase tracking-wider">
+                Painel do Contato
               </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {activeConversation.tags.map((tag, i) => (
-                  <span
-                    key={i}
-                    className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-[#F1EEFE] text-[#7C5CFC] border border-[#7C5CFC]/20"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
+              <Badge
+                variant="outline"
+                className="text-[10px] border-amber-300 bg-amber-50 text-amber-800 font-medium"
+              >
+                Demonstração
+              </Badge>
             </div>
 
-            {/* Responsible Agent */}
-            <div>
-              <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-2">
-                Agente Responsável
-              </h4>
-              <div className="p-3 rounded-xl border border-[#E5E5EC] flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg bg-[#F1EEFE] text-[#7C5CFC] flex items-center justify-center shrink-0 font-bold text-xs">
-                  <Bot className="w-4 h-4" />
+            {/* Card com dados do contato fictício */}
+            <div className="p-3.5 rounded-xl bg-[#FAF9FD] border border-[#E5E5EC] space-y-2.5 text-xs">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-full bg-[#7C5CFC] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                  {activeConversation.contactName.substring(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <div className="text-xs font-semibold text-[#1A1A24] truncate">
-                    {activeConversation.assignedAgentName}
+                  <div className="font-bold text-sm text-[#1A1A24] truncate">
+                    {activeConversation.contactName}
                   </div>
-                  <div className="text-[10px] text-emerald-600 font-medium">Operação autônoma</div>
+                  <div className="text-[11px] text-[#5F5F6B] truncate">
+                    {activeConversation.contactDetails?.company || 'Empresa Cliente Fictícia'}
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-[#E5E5EC]/60 space-y-2">
+                <div className="flex items-center gap-2 text-[#5F5F6B]">
+                  <Phone className="w-3.5 h-3.5 text-[#9B9BAD] shrink-0" />
+                  <span className="truncate">
+                    {activeConversation.contactDetails?.phone ||
+                      activeConversation.contactPhoneOrEmail}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[#5F5F6B]">
+                  <Mail className="w-3.5 h-3.5 text-[#9B9BAD] shrink-0" />
+                  <span className="truncate">
+                    {activeConversation.contactDetails?.email ||
+                      activeConversation.contactPhoneOrEmail}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-[#5F5F6B]">
+                  <Radio className="w-3.5 h-3.5 text-[#7C5CFC] shrink-0" />
+                  <span>
+                    Canal: <strong>{activeConversation.channel}</strong>
+                  </span>
+                </div>
+                {activeConversation.contactDetails?.location && (
+                  <div className="flex items-center gap-2 text-[#5F5F6B]">
+                    <MapPin className="w-3.5 h-3.5 text-[#9B9BAD] shrink-0" />
+                    <span className="truncate">{activeConversation.contactDetails.location}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Seção de Etiquetas (Tags) com Adicionar/Remover */}
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-[#7C5CFC]" />
+                  <span>Etiquetas</span>
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => setIsAddTagOpen(true)}
+                  className="text-[11px] text-[#7C5CFC] hover:underline font-semibold flex items-center gap-0.5"
+                >
+                  <Plus className="w-3 h-3" />
+                  Adicionar
+                </button>
+              </div>
+
+              {activeConversation.tags.length === 0 ? (
+                <p className="text-xs text-[#9B9BAD] italic bg-slate-50 p-2.5 rounded-lg border border-[#E5E5EC]">
+                  Nenhuma etiqueta atribuída.
+                </p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5">
+                  {activeConversation.tags.map((tag, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#F1EEFE] text-[#7C5CFC] border border-[#7C5CFC]/20 group transition-all"
+                    >
+                      <span>{tag}</span>
+                      <button
+                        type="button"
+                        onClick={() => removeConversationTag(activeConversation.id, tag)}
+                        className="hover:text-rose-600 rounded p-0.2"
+                        title={`Remover etiqueta "${tag}"`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Atribuição Vigente */}
+            <div>
+              <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-2">
+                Atribuição Atual
+              </h4>
+              <div className="space-y-2">
+                {/* Agente de IA */}
+                <div className="p-2.5 rounded-xl border border-[#E5E5EC] flex items-center justify-between bg-white text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-[#F1EEFE] text-[#7C5CFC] flex items-center justify-center shrink-0">
+                      <Bot className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-[#1A1A24] truncate">
+                        {activeConversation.assignedAgentName}
+                      </div>
+                      <div className="text-[10px] text-[#9B9BAD]">Agente de IA</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Atendente Humano */}
+                <div className="p-2.5 rounded-xl border border-[#E5E5EC] flex items-center justify-between bg-white text-xs">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                      <UserCheck className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-semibold text-[#1A1A24] truncate">
+                        {activeConversation.assignedHumanName || 'Nenhum atendente'}
+                      </div>
+                      <div className="text-[10px] text-[#9B9BAD]">
+                        {activeConversation.assignedHumanName
+                          ? 'Operador Ativo'
+                          : 'Atuação 100% IA'}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Resumo / Notas */}
+            {/* Histórico Resumido do Contato */}
+            <div>
+              <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                <History className="w-3.5 h-3.5 text-[#5F5F6B]" />
+                <span>Histórico do Contato</span>
+              </h4>
+              <div className="p-3 rounded-xl bg-slate-50 border border-[#E5E5EC] space-y-2 text-xs">
+                <div className="flex items-center justify-between text-[#5F5F6B]">
+                  <span>Total de atendimentos:</span>
+                  <span className="font-semibold text-[#1A1A24]">
+                    {activeConversation.contactDetails?.totalPreviousConversations || 1}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[#5F5F6B]">
+                  <span>Primeira interação:</span>
+                  <span className="font-semibold text-[#1A1A24]">
+                    {activeConversation.contactDetails?.firstInteractionDate || 'Hoje'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-[#5F5F6B]">
+                  <span>Canal preferencial:</span>
+                  <span className="font-semibold text-[#7C5CFC]">{activeConversation.channel}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Resumo da Demanda / Notas */}
             <div>
               <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-1.5">
                 Resumo da Demanda
               </h4>
-              <p className="text-xs text-[#5F5F6B] leading-relaxed p-3 rounded-xl bg-slate-50 border border-[#E5E5EC]">
+              <p className="text-xs text-[#5F5F6B] leading-relaxed p-3 rounded-xl bg-[#FAF9FD] border border-[#E5E5EC]">
                 {activeConversation.summaryNotes ||
-                  'Sem anotações adicionais para este atendimento.'}
+                  'Sem anotações adicionais registradas para este atendimento.'}
               </p>
             </div>
           </div>
         )}
       </div>
+
+      {/* Dialog Modal: Adicionar Etiqueta */}
+      <Dialog open={isAddTagOpen} onOpenChange={setIsAddTagOpen}>
+        <DialogContent className="max-w-md bg-white border border-[#E5E5EC] rounded-2xl p-6">
+          <DialogHeader>
+            <DialogTitle className="text-base font-bold text-[#1A1A24] flex items-center gap-2">
+              <Tag className="w-4 h-4 text-[#7C5CFC]" />
+              Adicionar Etiqueta à Conversa
+            </DialogTitle>
+            <DialogDescription className="text-xs text-[#5F5F6B]">
+              Selecione uma etiqueta rápida ou digite uma etiqueta personalizada para classificar o
+              atendimento de <strong>{activeConversation?.contactName}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A24] mb-1.5 block">
+                Nome da etiqueta
+              </label>
+              <Input
+                value={newTagInput}
+                onChange={(e) => setNewTagInput(e.target.value)}
+                placeholder="Ex: Orçamento, Urgente, Retorno..."
+                className="text-xs rounded-xl border-[#E5E5EC] focus-visible:ring-[#7C5CFC]"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    handleAddCustomTag()
+                  }
+                }}
+              />
+            </div>
+
+            <div>
+              <label className="text-xs font-semibold text-[#9B9BAD] uppercase tracking-wider mb-2 block">
+                Sugestões Rápidas
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_TAG_SUGGESTIONS.map((sug) => {
+                  const isAlreadyAdded = activeConversation?.tags.includes(sug)
+                  return (
+                    <button
+                      key={sug}
+                      type="button"
+                      disabled={isAlreadyAdded}
+                      onClick={() => handleAddCustomTag(sug)}
+                      className={`text-xs px-2.5 py-1 rounded-lg border transition-all ${
+                        isAlreadyAdded
+                          ? 'opacity-40 cursor-not-allowed bg-slate-100 border-slate-200 text-slate-400'
+                          : 'bg-[#F1EEFE] border-[#7C5CFC]/20 text-[#7C5CFC] hover:bg-[#7C5CFC] hover:text-white'
+                      }`}
+                    >
+                      + {sug}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsAddTagOpen(false)}
+              className="rounded-xl border-[#E5E5EC] text-xs"
+            >
+              Cancelar
+            </Button>
+            <Button
+              size="sm"
+              disabled={!newTagInput.trim()}
+              onClick={() => handleAddCustomTag()}
+              className="bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl text-xs font-semibold"
+            >
+              Salvar Etiqueta
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

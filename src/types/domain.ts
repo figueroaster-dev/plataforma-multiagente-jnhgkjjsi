@@ -85,6 +85,15 @@ export interface Message {
   timestamp: string
 }
 
+export interface ContactDetails {
+  firstInteractionDate?: string
+  totalPreviousConversations?: number
+  email?: string
+  phone?: string
+  company?: string
+  location?: string
+}
+
 export interface Conversation {
   id: string
   contactName: string
@@ -97,9 +106,11 @@ export interface Conversation {
   assignedAgentId: string
   assignedAgentName: string
   assignedHumanName?: string
+  assignedHumanId?: string
   messages: Message[]
   tags: string[]
   summaryNotes?: string
+  contactDetails?: ContactDetails
 }
 
 export interface ChannelItem {
