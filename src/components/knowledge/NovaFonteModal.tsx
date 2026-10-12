@@ -26,14 +26,22 @@ import { Badge } from '@/components/ui/badge'
 import { useApp } from '@/context/AppContext'
 import { KnowledgeBase, KnowledgeType } from '@/types/domain'
 
+import { useEffect } from 'react'
+
 export interface NovaFonteModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   /**
-   * Callback opcional disparado quando a nova fonte é criada com sucesso.
-   * Recebe o objeto da fonte recém-criada (ex: para auto-seleção na Etapa 3).
+   * Fonte a ser editada quando o modal estiver em modo de edição.
+   * Se não informada, o modal funciona em modo de criação.
+   */
+  knowledgeToEdit?: KnowledgeBase | null
+  /**
+   * Callback opcional disparado quando a fonte é criada ou salva com sucesso.
+   * Recebe o objeto da fonte (criada ou editada).
    */
   onCreated?: (newKnowledge: KnowledgeBase) => void
+  onSaved?: (savedKnowledge: KnowledgeBase) => void
   /**
    * ID do agente atual (se estiver no assistente de criação/edição),
    * permitindo vincular opcionalmente à nova fonte de forma imediata.
@@ -50,10 +58,14 @@ interface FaqItem {
 export function NovaFonteModal({
   open,
   onOpenChange,
+  knowledgeToEdit,
   onCreated,
+  onSaved,
   currentAgentId,
 }: NovaFonteModalProps) {
-  const { createKnowledgeBase } = useApp()
+  const { createKnowledgeBase, updateKnowledgeBase } = useApp()
+
+  const isEditMode = Boolean(knowledgeToEdit)
 
   const [type, setType] = useState<KnowledgeType>('PDF')
   const [name, setName] = useState('')
@@ -71,6 +83,57 @@ export function NovaFonteModal({
 
   // Erros de validação
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
+
+  // Carrega dados da fonte caso esteja em modo de edição, ou reseta se criação
+  useEffect(() => {
+    if (!open) return
+
+    if (knowledgeToEdit) {
+      setType(knowledgeToEdit.type)
+      setName(knowledgeToEdit.name || '')
+      setDescription(knowledgeToEdit.description || '')
+
+      if (knowledgeToEdit.type === 'PDF') {
+        setSelectedFileName(
+          knowledgeToEdit.fileName || `${knowledgeToEdit.name.replace(/\s+/g, '_')}.pdf`,
+        )
+        setSimulatedFileSize(knowledgeToEdit.fileSize || knowledgeToEdit.size || '3.2 MB')
+        setSiteUrl('')
+        setFaqItems([{ id: '1', pergunta: '', resposta: '' }])
+      } else if (knowledgeToEdit.type === 'Site') {
+        setSiteUrl(
+          knowledgeToEdit.siteUrl ||
+            (knowledgeToEdit.description?.includes('http')
+              ? knowledgeToEdit.description.replace(/^.*?(https?:\/\/[^\s]+).*$/, '$1')
+              : 'https://suaempresa.com.br/ajuda'),
+        )
+        setSelectedFileName('')
+        setSimulatedFileSize('')
+        setFaqItems([{ id: '1', pergunta: '', resposta: '' }])
+      } else if (knowledgeToEdit.type === 'FAQ') {
+        if (knowledgeToEdit.faqItems && knowledgeToEdit.faqItems.length > 0) {
+          setFaqItems(knowledgeToEdit.faqItems)
+        } else {
+          // Itens demonstrativos padrão para a base FAQ existente
+          setFaqItems([
+            {
+              id: 'faq-1',
+              pergunta: 'Quais são as regras e políticas gerais desta base?',
+              resposta:
+                knowledgeToEdit.description ||
+                'Respostas padronizadas para atendimento comercial e suporte.',
+            },
+          ])
+        }
+        setSelectedFileName('')
+        setSimulatedFileSize('')
+        setSiteUrl('')
+      }
+      setErrors({})
+    } else {
+      resetForm()
+    }
+  }, [open, knowledgeToEdit])
 
   // Reseta o formulário
   const resetForm = () => {
@@ -184,13 +247,21 @@ export function NovaFonteModal({
     let finalDescription = description.trim()
     let sourcesCount = 1
 
+    let finalFileName: string | undefined
+    let finalFileSize: string | undefined
+    let finalSiteUrl: string | undefined
+    let finalFaqItems: FaqItem[] | undefined
+
     if (type === 'PDF') {
-      calculatedSize = simulatedFileSize || '2.4 MB'
+      finalFileName = selectedFileName
+      finalFileSize = simulatedFileSize || '2.4 MB'
+      calculatedSize = finalFileSize
       sourcesCount = 1
       if (!finalDescription) {
         finalDescription = `Documento PDF demonstrativo: ${selectedFileName}`
       }
     } else if (type === 'Site') {
+      finalSiteUrl = siteUrl.trim()
       calculatedSize = 'Indexação web'
       sourcesCount = 1
       if (!finalDescription) {
@@ -200,6 +271,7 @@ export function NovaFonteModal({
       const validPairs = faqItems.filter(
         (item) => item.pergunta.trim().length > 0 && item.resposta.trim().length > 0,
       )
+      finalFaqItems = validPairs
       sourcesCount = validPairs.length
       calculatedSize = `${validPairs.length} ${validPairs.length === 1 ? 'pergunta' : 'perguntas'}`
       if (!finalDescription) {
@@ -207,20 +279,56 @@ export function NovaFonteModal({
       }
     }
 
-    const linkedAgentIds: string[] = currentAgentId ? [currentAgentId] : []
+    if (isEditMode && knowledgeToEdit) {
+      // Atualiza a fonte existente preservando vínculos com agentes e ID
+      updateKnowledgeBase({
+        id: knowledgeToEdit.id,
+        name: name.trim(),
+        type,
+        size: calculatedSize,
+        description: finalDescription,
+        sourcesCount,
+        fileName: finalFileName,
+        fileSize: finalFileSize,
+        siteUrl: finalSiteUrl,
+        faqItems: finalFaqItems,
+      })
 
-    const newKb = createKnowledgeBase({
-      name: name.trim(),
-      type,
-      status: 'pronto',
-      size: calculatedSize,
-      description: finalDescription,
-      sourcesCount,
-      linkedAgentIds,
-    })
+      if (onSaved) {
+        onSaved({
+          ...knowledgeToEdit,
+          name: name.trim(),
+          type,
+          size: calculatedSize,
+          description: finalDescription,
+          sourcesCount,
+          fileName: finalFileName,
+          fileSize: finalFileSize,
+          siteUrl: finalSiteUrl,
+          faqItems: finalFaqItems,
+        })
+      }
+    } else {
+      // Cria nova fonte
+      const linkedAgentIds: string[] = currentAgentId ? [currentAgentId] : []
 
-    if (onCreated) {
-      onCreated(newKb)
+      const newKb = createKnowledgeBase({
+        name: name.trim(),
+        type,
+        status: 'pronto',
+        size: calculatedSize,
+        description: finalDescription,
+        sourcesCount,
+        linkedAgentIds,
+        fileName: finalFileName,
+        fileSize: finalFileSize,
+        siteUrl: finalSiteUrl,
+        faqItems: finalFaqItems,
+      })
+
+      if (onCreated) {
+        onCreated(newKb)
+      }
     }
 
     handleClose()
@@ -232,7 +340,9 @@ export function NovaFonteModal({
         <DialogHeader className="text-left space-y-1 border-b border-[#E5E5EC] pb-4">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <DialogTitle className="text-lg font-bold text-[#1A1A24] flex items-center gap-2">
-              <span>Nova Fonte de Conhecimento</span>
+              <span>
+                {isEditMode ? 'Editar Fonte de Conhecimento' : 'Nova Fonte de Conhecimento'}
+              </span>
             </DialogTitle>
             <Badge
               variant="outline"
@@ -243,8 +353,9 @@ export function NovaFonteModal({
             </Badge>
           </div>
           <DialogDescription className="text-xs text-[#5F5F6B]">
-            Cadastre uma fonte de conhecimento para alimentar as respostas e contextualização dos
-            agentes inteligentes.
+            {isEditMode
+              ? 'Edite as informações da base de conhecimento. Os vínculos com os agentes serão preservados.'
+              : 'Cadastre uma fonte de conhecimento para alimentar as respostas e contextualização dos agentes inteligentes.'}
           </DialogDescription>
         </DialogHeader>
 
@@ -599,8 +710,17 @@ export function NovaFonteModal({
               type="submit"
               className="bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl text-xs font-semibold h-9 px-5 gap-1.5 shadow-sm"
             >
-              <Plus className="w-4 h-4" />
-              <span>Criar fonte</span>
+              {isEditMode ? (
+                <>
+                  <Check className="w-4 h-4" />
+                  <span>Salvar alterações</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-4 h-4" />
+                  <span>Criar fonte</span>
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

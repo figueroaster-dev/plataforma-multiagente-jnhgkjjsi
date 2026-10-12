@@ -51,6 +51,12 @@ export interface Agent {
 export type KnowledgeStatus = 'pronto' | 'processando' | 'erro'
 export type KnowledgeType = 'PDF' | 'FAQ' | 'Site'
 
+export interface KnowledgeBaseFaqItem {
+  id: string
+  pergunta: string
+  resposta: string
+}
+
 export interface KnowledgeBase {
   id: string
   name: string
@@ -62,6 +68,11 @@ export interface KnowledgeBase {
   description?: string
   sourcesCount?: number
   errorMessage?: string
+  // Referências demonstrativas ricas para edição
+  fileName?: string
+  fileSize?: string
+  siteUrl?: string
+  faqItems?: KnowledgeBaseFaqItem[]
 }
 
 export type ConversationStatus = 'aberta' | 'aguardando' | 'resolvida'

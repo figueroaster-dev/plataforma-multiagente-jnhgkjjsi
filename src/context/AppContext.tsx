@@ -36,6 +36,9 @@ interface AppContextType {
       linkedAgentIds?: string[]
     },
   ) => KnowledgeBase
+  updateKnowledgeBase: (data: Partial<KnowledgeBase> & { id: string }) => void
+  deleteKnowledgeBase: (id: string) => void
+  unlinkKnowledgeBaseFromAgent: (knowledgeId: string, agentId: string) => void
 
   conversations: Conversation[]
   selectedConversationId: string | null
@@ -151,6 +154,81 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return newKb
   }
 
+  const updateKnowledgeBase = (data: Partial<KnowledgeBase> & { id: string }) => {
+    const now = new Date()
+    const hours = String(now.getHours()).padStart(2, '0')
+    const minutes = String(now.getMinutes()).padStart(2, '0')
+    const updatedAt = `Hoje às ${hours}:${minutes}`
+
+    setKnowledgeBases((prev) =>
+      prev.map((kb) => (kb.id === data.id ? { ...kb, ...data, updatedAt } : kb)),
+    )
+
+    toast({
+      title: 'Fonte atualizada com sucesso!',
+      description: `As alterações na base de conhecimento foram salvas. (Demonstração)`,
+    })
+  }
+
+  const deleteKnowledgeBase = (id: string) => {
+    const target = knowledgeBases.find((kb) => kb.id === id)
+    const targetName = target?.name || 'Fonte de conhecimento'
+
+    // Remove a fonte da lista de bases
+    setKnowledgeBases((prev) => prev.filter((kb) => kb.id !== id))
+
+    // Remove o vínculo de todos os agentes que a utilizavam
+    setAgents((prev) =>
+      prev.map((agent) =>
+        agent.knowledgeBaseIds?.includes(id)
+          ? {
+              ...agent,
+              knowledgeBaseIds: agent.knowledgeBaseIds.filter((kbId) => kbId !== id),
+            }
+          : agent,
+      ),
+    )
+
+    toast({
+      title: 'Fonte excluída',
+      description: `A base "${targetName}" foi removida do catálogo e seus vínculos foram desfeitos.`,
+    })
+  }
+
+  const unlinkKnowledgeBaseFromAgent = (knowledgeId: string, agentId: string) => {
+    const targetKb = knowledgeBases.find((k) => k.id === knowledgeId)
+    const targetAgent = agents.find((a) => a.id === agentId)
+
+    // Remove do linkedAgentIds da fonte
+    setKnowledgeBases((prev) =>
+      prev.map((kb) =>
+        kb.id === knowledgeId
+          ? {
+              ...kb,
+              linkedAgentIds: kb.linkedAgentIds.filter((agId) => agId !== agentId),
+            }
+          : kb,
+      ),
+    )
+
+    // Remove do knowledgeBaseIds do agente
+    setAgents((prev) =>
+      prev.map((ag) =>
+        ag.id === agentId
+          ? {
+              ...ag,
+              knowledgeBaseIds: (ag.knowledgeBaseIds || []).filter((kbId) => kbId !== knowledgeId),
+            }
+          : ag,
+      ),
+    )
+
+    toast({
+      title: 'Vínculo removido',
+      description: `O vínculo entre a base "${targetKb?.name || 'Fonte'}" e o agente "${targetAgent?.name || 'Agente'}" foi desfeito.`,
+    })
+  }
+
   const addMessageToConversation = (convId: string, text: string) => {
     if (!text.trim()) return
 
@@ -262,6 +340,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         knowledgeBases,
         addKnowledgeBaseDemo,
         createKnowledgeBase,
+        updateKnowledgeBase,
+        deleteKnowledgeBase,
+        unlinkKnowledgeBaseFromAgent,
         conversations,
         selectedConversationId,
         setSelectedConversationId,

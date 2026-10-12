@@ -1010,63 +1010,79 @@ export default function NovoAgente() {
               </div>
 
               <div className="space-y-3 max-w-3xl">
-                {knowledgeBases.map((kb) => {
-                  const isSelected = selectedKnowledgeIds.includes(kb.id)
-                  return (
-                    <div
-                      key={kb.id}
-                      onClick={() => toggleKnowledge(kb.id)}
-                      className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
-                        isSelected
-                          ? 'bg-[#F1EEFE]/40 border-[#7C5CFC]/50 shadow-sm'
-                          : 'bg-white border-[#E5E5EC] hover:border-slate-300'
-                      }`}
+                {knowledgeBases.length === 0 ? (
+                  <div className="p-8 text-center bg-slate-50 border border-dashed border-[#E5E5EC] rounded-2xl">
+                    <p className="text-xs font-medium text-[#5F5F6B]">
+                      Nenhuma fonte de conhecimento cadastrada no catálogo.
+                    </p>
+                    <Button
+                      type="button"
+                      onClick={() => setIsNovaFonteModalOpen(true)}
+                      className="mt-3 bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl text-xs font-semibold h-8 px-3 gap-1"
                     >
-                      <div className="flex items-center gap-3 min-w-0">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                            isSelected ? 'bg-[#7C5CFC] text-white' : 'bg-slate-100 text-slate-500'
-                          }`}
-                        >
-                          <FileText className="w-4 h-4" />
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm font-semibold text-[#1A1A24] truncate">
-                              {kb.name}
-                            </h4>
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
-                              Tipo: {kb.type}
-                            </span>
-                            <StatusPill status={kb.status} size="sm" />
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Cadastrar primeira fonte</span>
+                    </Button>
+                  </div>
+                ) : (
+                  knowledgeBases.map((kb) => {
+                    const isSelected = selectedKnowledgeIds.includes(kb.id)
+                    return (
+                      <div
+                        key={kb.id}
+                        onClick={() => toggleKnowledge(kb.id)}
+                        className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-4 ${
+                          isSelected
+                            ? 'bg-[#F1EEFE]/40 border-[#7C5CFC]/50 shadow-sm'
+                            : 'bg-white border-[#E5E5EC] hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              isSelected ? 'bg-[#7C5CFC] text-white' : 'bg-slate-100 text-slate-500'
+                            }`}
+                          >
+                            <FileText className="w-4 h-4" />
                           </div>
-                          <p className="text-xs text-[#5F5F6B] mt-0.5 line-clamp-1">
-                            {kb.description ||
-                              'Fonte para consulta de dúvidas da base de conhecimento.'}
-                          </p>
-                          <span className="text-[10px] text-[#9B9BAD] mt-1 block">
-                            Tamanho: {kb.size || '1 documento'} • Atualizado: {kb.updatedAt}
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h4 className="text-sm font-semibold text-[#1A1A24] truncate">
+                                {kb.name}
+                              </h4>
+                              <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                                Tipo: {kb.type}
+                              </span>
+                              <StatusPill status={kb.status} size="sm" />
+                            </div>
+                            <p className="text-xs text-[#5F5F6B] mt-0.5 line-clamp-1">
+                              {kb.description ||
+                                'Fonte para consulta de dúvidas da base de conhecimento.'}
+                            </p>
+                            <span className="text-[10px] text-[#9B9BAD] mt-1 block">
+                              Tamanho: {kb.size || '1 documento'} • Atualizado: {kb.updatedAt}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3 shrink-0">
+                          <span
+                            className={`text-xs font-semibold hidden sm:inline ${
+                              isSelected ? 'text-[#7C5CFC]' : 'text-[#9B9BAD]'
+                            }`}
+                          >
+                            {isSelected ? 'Selecionada' : 'Não selecionada'}
                           </span>
+                          <Switch
+                            checked={isSelected}
+                            onCheckedChange={() => toggleKnowledge(kb.id)}
+                            className="data-[state=checked]:bg-[#7C5CFC]"
+                          />
                         </div>
                       </div>
-
-                      <div className="flex items-center gap-3 shrink-0">
-                        <span
-                          className={`text-xs font-semibold ${
-                            isSelected ? 'text-[#7C5CFC]' : 'text-[#9B9BAD]'
-                          }`}
-                        >
-                          {isSelected ? 'Selecionada' : 'Não selecionada'}
-                        </span>
-                        <Switch
-                          checked={isSelected}
-                          onCheckedChange={() => toggleKnowledge(kb.id)}
-                          className="data-[state=checked]:bg-[#7C5CFC]"
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                )}
               </div>
             </div>
           )}

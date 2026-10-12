@@ -114,6 +114,8 @@ export const INITIAL_KNOWLEDGE: KnowledgeBase[] = [
     size: '4.2 MB',
     description: 'Manual de onboarding, produtos e termos de contratação.',
     sourcesCount: 1,
+    fileName: 'Manual_do_Cliente_2024.pdf',
+    fileSize: '4.2 MB',
   },
   {
     id: 'kb-2',
@@ -125,6 +127,7 @@ export const INITIAL_KNOWLEDGE: KnowledgeBase[] = [
     size: '18 URLs',
     description: 'Páginas públicas de perguntas e respostas sincronizadas.',
     sourcesCount: 18,
+    siteUrl: 'https://cerebrodigital.com.br/ajuda',
   },
   {
     id: 'kb-3',
@@ -133,9 +136,28 @@ export const INITIAL_KNOWLEDGE: KnowledgeBase[] = [
     status: 'processando',
     updatedAt: 'Há 1 hora',
     linkedAgentIds: ['ag-1'],
-    size: '34 itens',
+    size: '3 itens',
     description: 'Tabela estruturada de respostas padronizadas para vendas.',
-    sourcesCount: 34,
+    sourcesCount: 3,
+    faqItems: [
+      {
+        id: 'faq-1',
+        pergunta: 'Quais são as formas de pagamento aceitas?',
+        resposta:
+          'Aceitamos cartões de crédito em até 12x, boleto bancário e PIX com 5% de desconto.',
+      },
+      {
+        id: 'faq-2',
+        pergunta: 'Como funciona a garantia e o suporte técnico?',
+        resposta:
+          'Oferecemos garantia de 12 meses e suporte técnico via WhatsApp e chat em horário comercial.',
+      },
+      {
+        id: 'faq-3',
+        pergunta: 'Existe período de teste gratuito para os agentes?',
+        resposta: 'Sim, disponibilizamos 14 dias de teste com todas as funcionalidades liberadas.',
+      },
+    ],
   },
   {
     id: 'kb-4',
@@ -147,6 +169,8 @@ export const INITIAL_KNOWLEDGE: KnowledgeBase[] = [
     size: '12.8 MB',
     description: 'Documento confidencial com tabelas escaneadas não legíveis.',
     sourcesCount: 1,
+    fileName: 'Politica_Seguranca_Corporativa.pdf',
+    fileSize: '12.8 MB',
     errorMessage: 'Falha no processamento: documento protegido ou páginas sem OCR legível.',
   },
 ]
