@@ -93,10 +93,7 @@ export default function Index() {
   }
 
   const handleCreateAgent = () => {
-    toast({
-      title: 'Criar agente',
-      description: 'Em breve: criação guiada de novos agentes. (Protótipo demonstrativo)',
-    })
+    navigate('/agentes/novo')
   }
 
   return (

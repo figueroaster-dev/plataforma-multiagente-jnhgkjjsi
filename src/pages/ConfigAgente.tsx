@@ -202,6 +202,11 @@ export default function ConfigAgente() {
         onToggleSidebar={outletCtx?.toggleMobileMenu}
         action={
           <div className="flex items-center gap-2">
+            <span className="hidden md:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#F1EEFE] text-[#7C5CFC] border border-[#7C5CFC]/30">
+              <Sparkles className="w-3 h-3 text-[#7C5CFC]" />
+              <span>Demonstração</span>
+            </span>
+
             <StatusPill status={status} size="sm" />
 
             <Button
@@ -237,15 +242,26 @@ export default function ConfigAgente() {
       />
 
       <main className="flex-1 max-w-[1200px] w-full mx-auto px-4 sm:px-6 py-6 space-y-6">
-        {/* Back Link */}
-        <button
-          type="button"
-          onClick={() => navigate('/agentes')}
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5F5F6B] hover:text-[#7C5CFC] transition-colors"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Voltar para Agentes</span>
-        </button>
+        {/* Back Link and Metadata Banner */}
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/agentes')}
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5F5F6B] hover:text-[#7C5CFC] transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Voltar para Agentes</span>
+          </button>
+
+          {currentAgent.apiIntegration?.enabled && (
+            <div className="text-[11px] bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-xl border border-emerald-200 flex items-center gap-1.5">
+              <span className="font-semibold uppercase text-[9px] bg-emerald-200 px-1 py-0.2 rounded">
+                {currentAgent.apiIntegration.method}
+              </span>
+              <span>API Vinculada: {currentAgent.apiIntegration.name}</span>
+            </div>
+          )}
+        </div>
 
         {/* Stepper Progress */}
         <Stepper
@@ -294,9 +310,12 @@ export default function ConfigAgente() {
                     onChange={(e) => setPurpose(e.target.value as AgentPurpose)}
                     className="w-full bg-white border border-[#E5E5EC] text-[#1A1A24] rounded-xl text-sm px-3.5 py-2.5 focus:ring-[#7C5CFC] focus:outline-none"
                   >
-                    <option value="Vendas">Vendas (Qualificação e conversão)</option>
+                    <option value="Atendimento">Atendimento (FAQ e triagem)</option>
                     <option value="Suporte">Suporte Técnico (Triagem e resoluções)</option>
-                    <option value="Atendimento">Atendimento Geral (FAQ e direcionamento)</option>
+                    <option value="SDR">SDR (Pré-vendas e qualificação)</option>
+                    <option value="BDR">BDR (Prospecção ativa)</option>
+                    <option value="Vendas">Vendas (Qualificação e conversão)</option>
+                    <option value="Personalizado">Personalizado (Fluxo sob medida)</option>
                     <option value="Outros">Outros fluxos operacionais</option>
                   </select>
                 </div>

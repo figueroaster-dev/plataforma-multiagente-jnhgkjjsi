@@ -9,8 +9,23 @@ export interface Workspace {
 }
 
 export type AgentStatus = 'ativo' | 'rascunho' | 'pausado'
-export type AgentPurpose = 'Vendas' | 'Suporte' | 'Atendimento' | 'Outros'
-export type ChannelType = 'whatsapp' | 'webchat' | 'instagram' | 'messenger'
+export type AgentPurpose =
+  | 'Vendas'
+  | 'Suporte'
+  | 'Atendimento'
+  | 'SDR'
+  | 'BDR'
+  | 'Personalizado'
+  | 'Outros'
+export type ChannelType = 'whatsapp' | 'webchat' | 'instagram' | 'messenger' | 'nenhum'
+
+export interface AgentApiIntegrationDemo {
+  enabled: boolean
+  name: string
+  method: 'GET' | 'POST' | 'PUT' | 'DELETE'
+  url: string
+  description: string
+}
 
 export interface Agent {
   id: string
@@ -22,11 +37,15 @@ export interface Agent {
   status: AgentStatus
   lastActivity: string
   instructions?: string
+  initialMessage?: string
+  fallbackMessage?: string
   temperature?: number
   model?: string
   knowledgeBaseIds?: string[]
   humanHandoffEnabled?: boolean
   conversationsCount?: number
+  apiIntegration?: AgentApiIntegrationDemo
+  isDemoCreated?: boolean
 }
 
 export type KnowledgeStatus = 'pronto' | 'processando' | 'erro'

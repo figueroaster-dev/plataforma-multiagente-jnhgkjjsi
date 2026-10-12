@@ -32,11 +32,7 @@ export default function Agentes() {
   const [selectedPurpose, setSelectedPurpose] = useState<string>('todos')
 
   const handleCreateAgent = () => {
-    toast({
-      title: 'Em breve: criação de agente',
-      description:
-        'O assistente de criação de novos agentes estará disponível na próxima versão. (Protótipo demonstrativo)',
-    })
+    navigate('/agentes/novo')
   }
 
   const filteredAgents = useMemo(() => {
@@ -129,12 +125,14 @@ export default function Agentes() {
               className="bg-[#F7F7FB] border border-[#E5E5EC] text-[#5F5F6B] rounded-xl text-xs px-3 py-1.5 h-9 focus:ring-[#7C5CFC] focus:outline-none"
             >
               <option value="todos">Todas finalidades</option>
-              <option value="Vendas">Vendas</option>
-              <option value="Suporte">Suporte</option>
               <option value="Atendimento">Atendimento</option>
+              <option value="Suporte">Suporte</option>
+              <option value="SDR">SDR</option>
+              <option value="BDR">BDR</option>
+              <option value="Vendas">Vendas</option>
+              <option value="Personalizado">Personalizado</option>
               <option value="Outros">Outros</option>
             </select>
-
             {hasActiveFilters && (
               <Button
                 variant="ghost"

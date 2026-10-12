@@ -24,6 +24,9 @@ interface AppContextType {
   agents: Agent[]
   getAgentById: (id: string) => Agent | undefined
   updateAgent: (agent: Partial<Agent> & { id: string }) => void
+  createAgent: (
+    agentData: Omit<Agent, 'id' | 'lastActivity' | 'conversationsCount'> & { id?: string },
+  ) => Agent
 
   knowledgeBases: KnowledgeBase[]
   addKnowledgeBaseDemo: () => void
@@ -68,6 +71,35 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setAgents((prev) =>
       prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
     )
+  }
+
+  const createAgent = (
+    agentData: Omit<Agent, 'id' | 'lastActivity' | 'conversationsCount'> & { id?: string },
+  ): Agent => {
+    const newId = agentData.id || `ag-${Date.now().toString(36)}`
+    const newAgent: Agent = {
+      id: newId,
+      name: agentData.name,
+      purpose: agentData.purpose,
+      description: agentData.description,
+      channel: agentData.channel,
+      channelType: agentData.channelType,
+      status: agentData.status || 'rascunho',
+      lastActivity: 'criado agora',
+      instructions: agentData.instructions,
+      initialMessage: agentData.initialMessage,
+      fallbackMessage: agentData.fallbackMessage,
+      temperature: agentData.temperature ?? 0.3,
+      model: agentData.model ?? 'gpt-4o-mini',
+      knowledgeBaseIds: agentData.knowledgeBaseIds ?? [],
+      humanHandoffEnabled: agentData.humanHandoffEnabled ?? true,
+      conversationsCount: 0,
+      apiIntegration: agentData.apiIntegration,
+      isDemoCreated: true,
+    }
+
+    setAgents((prev) => [newAgent, ...prev])
+    return newAgent
   }
 
   const addKnowledgeBaseDemo = () => {
@@ -185,6 +217,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         agents,
         getAgentById,
         updateAgent,
+        createAgent,
         knowledgeBases,
         addKnowledgeBaseDemo,
         conversations,
