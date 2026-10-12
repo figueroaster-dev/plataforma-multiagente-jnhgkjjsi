@@ -6,7 +6,132 @@ import {
   ChannelItem,
   IntegrationItem,
   WorkspaceUser,
+  WhatsAppConnectionConfig,
+  CompanyAISettings,
+  AIModelOption,
+  AIProviderId,
 } from '@/types/domain'
+
+export const AI_PROVIDERS_CONFIG: Record<
+  AIProviderId,
+  {
+    name: string
+    badge: string
+    description: string
+    models: AIModelOption[]
+  }
+> = {
+  openai: {
+    name: 'OpenAI',
+    badge: 'Demonstrativo',
+    description:
+      'Provedor líder em inteligência geral, raciocínio avançado e suporte nativo a function calling.',
+    models: [
+      {
+        id: 'gpt-4o',
+        name: 'gpt-4o (exemplo demonstrativo)',
+        description:
+          'Modelo omni multimodal de alto desempenho para conversas complexas e suporte comercial.',
+        contextWindow: '128k tokens',
+        isRecommended: true,
+      },
+      {
+        id: 'gpt-4o-mini',
+        name: 'gpt-4o-mini (exemplo demonstrativo)',
+        description:
+          'Modelo veloz e de alta eficiência de custos para triagem rápida e atendimento frequente.',
+        contextWindow: '128k tokens',
+      },
+      {
+        id: 'o3-mini',
+        name: 'o3-mini (exemplo demonstrativo)',
+        description:
+          'Raciocínio lógico estruturado voltado a diagnósticos e fluxos de suporte especializados.',
+        contextWindow: '128k tokens',
+      },
+    ],
+  },
+  anthropic: {
+    name: 'Anthropic',
+    badge: 'Demonstrativo',
+    description:
+      'Modelos Claude orientados a respostas seguras, empáticas e com profunda compreensão de diretrizes corporativas.',
+    models: [
+      {
+        id: 'claude-3-7-sonnet',
+        name: 'claude-3-7-sonnet (exemplo demonstrativo)',
+        description:
+          'Capacidade híbrida de raciocínio rápido e estendido com tom consultivo refinado.',
+        contextWindow: '200k tokens',
+        isRecommended: true,
+      },
+      {
+        id: 'claude-3-5-haiku',
+        name: 'claude-3-5-haiku (exemplo demonstrativo)',
+        description: 'Excelente velocidade de resposta para chat imediato e qualificação de leads.',
+        contextWindow: '200k tokens',
+      },
+    ],
+  },
+  google: {
+    name: 'Google Gemini',
+    badge: 'Demonstrativo',
+    description: 'Modelos Gemini com amplas janelas de contexto e processamento de bases extensas.',
+    models: [
+      {
+        id: 'gemini-1-5-pro',
+        name: 'gemini-1-5-pro (exemplo demonstrativo)',
+        description:
+          'Janela de contexto ultra-ampla para análise de catálogos densos e manuais complexos.',
+        contextWindow: '1 milhão de tokens',
+        isRecommended: true,
+      },
+      {
+        id: 'gemini-1-5-flash',
+        name: 'gemini-1-5-flash (exemplo demonstrativo)',
+        description:
+          'Baixa latência com processamento ágil para mensagens curtas no WhatsApp e webchat.',
+        contextWindow: '1 milhão de tokens',
+      },
+    ],
+  },
+}
+
+export const INITIAL_COMPANY_AI_SETTINGS: CompanyAISettings = {
+  provider: 'openai',
+  model: 'gpt-4o',
+  byokEnabled: false,
+  maskedKeyExample: 'sk-proj-•••••••••••••••••••••••••demo',
+  temperatureDefault: 0.3,
+  status: 'conexao_demonstrativa',
+  lastTestedAt: 'Hoje às 11:20',
+}
+
+export const INITIAL_WHATSAPP_CONNECTIONS: WhatsAppConnectionConfig[] = [
+  {
+    id: 'wa-conn-1',
+    workspaceId: 'cerebro-digital',
+    providerType: 'meta_cloud_api',
+    displayName: 'Número Comercial Matriz',
+    phoneNumber: '+55 (11) 98765-4321',
+    status: 'conectado_demonstracao',
+    connectedAt: '15 de Jan de 2024',
+    lastCheckedAt: 'Há 5 min',
+    notes: 'Canal oficial configurado via Meta Cloud API corporativa (demonstração).',
+  },
+  {
+    id: 'wa-conn-2',
+    workspaceId: 'cerebro-digital',
+    providerType: 'evolution_api',
+    subType: 'evolution_baileys',
+    displayName: 'WhatsApp Web - Instância de Testes',
+    phoneNumber: '+55 (11) 97654-3210',
+    status: 'atencao_conexao',
+    connectedAt: '02 de Fev de 2024',
+    lastCheckedAt: 'Há 12 min',
+    notes: 'Sessão Baileys experimental sujeita a reconexão por QR Code.',
+  },
+]
 
 export const INITIAL_WORKSPACES: Workspace[] = [
   {

@@ -113,11 +113,53 @@ export interface Conversation {
   contactDetails?: ContactDetails
 }
 
+export type WhatsAppProviderType = 'meta_cloud_api' | 'bsp_partner' | 'evolution_api' | 'uazapi'
+
+export type WhatsAppConnectionState = 'nao_conectado' | 'conectado_demonstracao' | 'atencao_conexao'
+
+export interface WhatsAppConnectionConfig {
+  id: string
+  workspaceId: WorkspaceId
+  providerType: WhatsAppProviderType
+  subType?:
+    | 'evolution_cloud_api'
+    | 'evolution_baileys'
+    | 'bsp_360dialog'
+    | 'bsp_twilio'
+    | 'bsp_zenvia'
+  displayName: string
+  phoneNumber?: string
+  status: WhatsAppConnectionState
+  connectedAt?: string
+  lastCheckedAt?: string
+  notes?: string
+}
+
+export type AIProviderId = 'openai' | 'anthropic' | 'google'
+
+export interface AIModelOption {
+  id: string
+  name: string
+  description: string
+  contextWindow: string
+  isRecommended?: boolean
+}
+
+export interface CompanyAISettings {
+  provider: AIProviderId
+  model: string
+  byokEnabled: boolean
+  maskedKeyExample: string
+  temperatureDefault: number
+  status: 'nao_configurado' | 'conexao_demonstrativa'
+  lastTestedAt?: string
+}
+
 export interface ChannelItem {
   id: string
   name: string
   type: ChannelType
-  status: 'nao_conectado' | 'configuracao_futura'
+  status: 'nao_conectado' | 'configuracao_futura' | 'conectado_demonstracao' | 'atencao_conexao'
   description: string
   badgeText: string
   icon: string

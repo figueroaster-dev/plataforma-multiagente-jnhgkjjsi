@@ -13,6 +13,8 @@ export type StatusType =
   | 'resolvida'
   | 'nao_conectado'
   | 'configuracao_futura'
+  | 'conectado_demonstracao'
+  | 'atencao_conexao'
 
 interface StatusPillProps {
   status: StatusType
@@ -87,6 +89,18 @@ const statusConfig: Record<StatusType, { label: string; bg: string; text: string
     bg: 'bg-purple-50 text-purple-700 border-purple-200/60',
     text: 'text-purple-700',
     dot: 'bg-purple-400',
+  },
+  conectado_demonstracao: {
+    label: 'Conectado — demonstração',
+    bg: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+    text: 'text-emerald-700',
+    dot: 'bg-emerald-500',
+  },
+  atencao_conexao: {
+    label: 'Atenção à conexão',
+    bg: 'bg-amber-50 text-amber-800 border-amber-200/80',
+    text: 'text-amber-800',
+    dot: 'bg-amber-500 animate-pulse',
   },
 }
 

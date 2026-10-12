@@ -7,6 +7,8 @@ import {
   Conversation,
   ConversationStatus,
   WorkspaceUser,
+  WhatsAppConnectionConfig,
+  CompanyAISettings,
 } from '@/types/domain'
 import {
   INITIAL_WORKSPACES,
@@ -14,6 +16,8 @@ import {
   INITIAL_KNOWLEDGE,
   INITIAL_CONVERSATIONS,
   WORKSPACE_USERS,
+  INITIAL_COMPANY_AI_SETTINGS,
+  INITIAL_WHATSAPP_CONNECTIONS,
 } from '@/data/mockData'
 import { useToast } from '@/hooks/use-toast'
 
@@ -57,6 +61,23 @@ interface AppContextType {
   returnToAgent: (convId: string) => void
 
   users: WorkspaceUser[]
+
+  // Conexões de WhatsApp (demonstrativo)
+  whatsAppConnections: WhatsAppConnectionConfig[]
+  addWhatsAppConnection: (
+    conn: Omit<WhatsAppConnectionConfig, 'id' | 'workspaceId'>,
+  ) => WhatsAppConnectionConfig
+  updateWhatsAppConnectionStatus: (id: string, status: WhatsAppConnectionConfig['status']) => void
+  removeWhatsAppConnection: (id: string) => void
+
+  // Configurações de Modelos de IA da Empresa (demonstrativo)
+  companyAISettings: CompanyAISettings
+  updateCompanyAISettings: (settings: Partial<CompanyAISettings>) => void
+  testAIConnectionSimulation: () => Promise<{
+    success: boolean
+    latencyMs: number
+    message: string
+  }>
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -70,6 +91,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [conversations, setConversations] = useState<Conversation[]>(INITIAL_CONVERSATIONS)
   const [selectedConversationId, setSelectedConversationId] = useState<string | null>('conv-1')
   const [users] = useState<WorkspaceUser[]>(WORKSPACE_USERS)
+  const [whatsAppConnections, setWhatsAppConnections] = useState<WhatsAppConnectionConfig[]>(
+    INITIAL_WHATSAPP_CONNECTIONS,
+  )
+  const [companyAISettings, setCompanyAISettings] = useState<CompanyAISettings>(
+    INITIAL_COMPANY_AI_SETTINGS,
+  )
 
   const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId) || workspaces[0]
 
@@ -462,6 +489,60 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     })
   }
 
+  const addWhatsAppConnection = (
+    conn: Omit<WhatsAppConnectionConfig, 'id' | 'workspaceId'>,
+  ): WhatsAppConnectionConfig => {
+    const newConn: WhatsAppConnectionConfig = {
+      ...conn,
+      id: `wa-${Date.now().toString(36)}`,
+      workspaceId: currentWorkspaceId,
+      connectedAt: 'Agora mesmo',
+      lastCheckedAt: 'Há poucos instantes',
+    }
+    setWhatsAppConnections((prev) => [newConn, ...prev])
+    return newConn
+  }
+
+  const updateWhatsAppConnectionStatus = (
+    id: string,
+    status: WhatsAppConnectionConfig['status'],
+  ) => {
+    setWhatsAppConnections((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, status, lastCheckedAt: 'Agora há pouco' } : item,
+      ),
+    )
+  }
+
+  const removeWhatsAppConnection = (id: string) => {
+    setWhatsAppConnections((prev) => prev.filter((item) => item.id !== id))
+    toast({
+      title: 'Conexão removida',
+      description: 'A instância de WhatsApp foi desvinculada (demonstração).',
+    })
+  }
+
+  const updateCompanyAISettings = (settings: Partial<CompanyAISettings>) => {
+    setCompanyAISettings((prev) => ({
+      ...prev,
+      ...settings,
+    }))
+  }
+
+  const testAIConnectionSimulation = async (): Promise<{
+    success: boolean
+    latencyMs: number
+    message: string
+  }> => {
+    // Simulação visual rápida sem chamadas de rede externas
+    const latency = Math.floor(Math.random() * 220) + 140
+    return {
+      success: true,
+      latencyMs: latency,
+      message: `Resposta simulada recebida com sucesso da engine de IA em ${latency}ms. Tokens e chaves não trafegados.`,
+    }
+  }
+
   return (
     <AppContext.Provider
       value={{
@@ -493,6 +574,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         resolveConversation,
         returnToAgent,
         users,
+        whatsAppConnections,
+        addWhatsAppConnection,
+        updateWhatsAppConnectionStatus,
+        removeWhatsAppConnection,
+        companyAISettings,
+        updateCompanyAISettings,
+        testAIConnectionSimulation,
       }}
     >
       {children}

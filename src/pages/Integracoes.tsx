@@ -12,8 +12,8 @@ export default function Integracoes() {
 
   const handleConnectIntegration = (name: string) => {
     toast({
-      title: 'Não conectado — disponível em breve',
-      description: `A integração "${name}" está em homologação técnica. Nenhuma credencial necessária nesta fase.`,
+      title: 'Integração em homologação (Demonstração)',
+      description: `A integração "${name}" está em homologação técnica e arquitetural. Nenhuma credencial externa é necessária ou trafegada.`,
     })
   }
 
@@ -44,11 +44,17 @@ export default function Integracoes() {
         {/* Banner informativo */}
         <div className="p-4 rounded-2xl bg-white border border-[#E5E5EC] shadow-sm flex items-start gap-3">
           <Shield className="w-5 h-5 text-[#7C5CFC] shrink-0 mt-0.5" />
-          <div className="text-xs text-[#5F5F6B]">
-            <p className="font-semibold text-[#1A1A24] mb-0.5">Camada de Conexão Segura</p>
+          <div className="text-xs text-[#5F5F6B] space-y-1">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold text-[#1A1A24]">Camada de Conexão Segura</span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-violet-100 text-[#7C5CFC]">
+                Demonstração
+              </span>
+            </div>
             <p>
-              Nenhum dado real ou credencial externa é trafegado no protótipo. Todas as integrações
-              e chamadas a modelos ou APIs externas permanecem desligadas.
+              Nenhum dado real ou credencial externa é trafegado no protótipo. As ferramentas, APIs
+              e integrações de canais (como WhatsApp Cloud API, Evolution API e UAZAPI) são
+              simuladas localmente para planejamento de arquitetura antes da implementação real.
             </p>
           </div>
         </div>
