@@ -14,6 +14,7 @@ import {
   Settings,
   Sparkles,
   AlertCircle,
+  Trash2,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { StatusPill } from '@/components/common/StatusPill'
@@ -49,7 +50,7 @@ export default function Agentes() {
   const { agents } = useApp()
   const outletCtx = useOutletContext<{ toggleMobileMenu?: () => void }>()
 
-  const { updateAgent } = useApp()
+  const { updateAgent, deleteAgent } = useApp()
 
   const [search, setSearch] = useState('')
   const [selectedStatus, setSelectedStatus] = useState<string>('todos')
@@ -61,6 +62,9 @@ export default function Agentes() {
     targetStatus: AgentStatus
     actionLabel: string
   } | null>(null)
+
+  // Estado para confirmação de exclusão do agente
+  const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null)
 
   const handleCreateAgent = () => {
     navigate('/agentes/novo')
@@ -398,6 +402,17 @@ export default function Agentes() {
                                 <Settings className="w-3.5 h-3.5 text-[#7C5CFC]" />
                                 <span>Configurar</span>
                               </DropdownMenuItem>
+
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  setAgentToDelete(agent)
+                                }}
+                                className="gap-2 cursor-pointer rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 focus:bg-rose-50 focus:text-rose-700 py-1.5 font-medium"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Excluir agente</span>
+                              </DropdownMenuItem>
                             </DropdownMenuContent>
                           </DropdownMenu>
                         </div>
@@ -520,6 +535,17 @@ export default function Agentes() {
                             <Settings className="w-3.5 h-3.5 text-[#7C5CFC]" />
                             <span>Configurar</span>
                           </DropdownMenuItem>
+
+                          <DropdownMenuItem
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setAgentToDelete(agent)
+                            }}
+                            className="gap-2 cursor-pointer rounded-lg text-rose-600 hover:text-rose-700 hover:bg-rose-50 focus:bg-rose-50 focus:text-rose-700 py-1.5 font-medium"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>Excluir agente</span>
+                          </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
@@ -599,6 +625,50 @@ export default function Agentes() {
               className="rounded-xl bg-[#7C5CFC] hover:bg-[#6A48E8] text-white text-xs font-semibold h-9 px-4 shadow-sm"
             >
               Confirmar alteração
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Diálogo de confirmação para exclusão de agente */}
+      <AlertDialog
+        open={Boolean(agentToDelete)}
+        onOpenChange={(open) => {
+          if (!open) setAgentToDelete(null)
+        }}
+      >
+        <AlertDialogContent className="rounded-2xl border border-[#E5E5EC] bg-white max-w-md p-6">
+          <AlertDialogHeader>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-8 h-8 rounded-xl bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <Trash2 className="w-4 h-4" />
+              </span>
+              <AlertDialogTitle className="text-base font-bold text-[#1A1A24]">
+                Excluir agente
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="text-xs text-[#5F5F6B] leading-relaxed pt-2">
+              Tem certeza que deseja remover o agente &quot;{agentToDelete?.name}&quot;? As fontes
+              vinculadas a ele serão desassociadas. Esta ação é demonstrativa.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 sm:gap-2 mt-2">
+            <AlertDialogCancel
+              onClick={() => setAgentToDelete(null)}
+              className="rounded-xl border-[#E5E5EC] text-xs h-9 px-4 text-[#5F5F6B] hover:text-[#1A1A24]"
+            >
+              Cancelar
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (agentToDelete) {
+                  deleteAgent(agentToDelete.id)
+                  setAgentToDelete(null)
+                }
+              }}
+              className="rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold h-9 px-4 shadow-sm"
+            >
+              Excluir agente
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

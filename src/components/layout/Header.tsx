@@ -1,4 +1,5 @@
 import React from 'react'
+import { Link } from 'react-router-dom'
 import { Bell, Menu } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/hooks/use-toast'
@@ -53,12 +54,12 @@ export const Header: React.FC<HeaderProps> = ({
                   <React.Fragment key={idx}>
                     {idx > 0 && <span>/</span>}
                     {bc.href ? (
-                      <a
-                        href={bc.href}
+                      <Link
+                        to={bc.href}
                         className="hover:text-[#7C5CFC] transition-colors truncate max-w-[140px]"
                       >
                         {bc.label}
-                      </a>
+                      </Link>
                     ) : (
                       <span className="text-[#5F5F6B] font-medium truncate max-w-[140px]">
                         {bc.label}

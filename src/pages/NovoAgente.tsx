@@ -57,7 +57,8 @@ export default function NovoAgente() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { createAgent, updateAgent, getAgentById, knowledgeBases } = useApp()
+  const { createAgent, updateAgent, getAgentById, syncKnowledgeBasesForAgent, knowledgeBases } =
+    useApp()
   const outletCtx = useOutletContext<{ toggleMobileMenu?: () => void }>()
 
   // Existing agent if in edit mode
@@ -441,6 +442,9 @@ export default function NovoAgente() {
           : undefined,
       })
 
+      // Sincronização bidirecional: reflete os vínculos nos objetos das bases de conhecimento
+      syncKnowledgeBasesForAgent(existingAgent.id, selectedKnowledgeIds)
+
       toast({
         title: 'Alterações salvas com sucesso!',
         description: `O agente "${name.trim()}" foi atualizado mantendo seu status (${existingAgent.status}). (Demonstração)`,
@@ -477,6 +481,11 @@ export default function NovoAgente() {
           }
         : undefined,
     })
+
+    // Sincronização bidirecional: reflete os vínculos na lista de bases de conhecimento
+    if (selectedKnowledgeIds.length > 0) {
+      syncKnowledgeBasesForAgent(created.id, selectedKnowledgeIds)
+    }
 
     toast({
       title: finalPublish ? 'Agente criado como Rascunho!' : 'Rascunho salvo com sucesso!',
@@ -718,7 +727,7 @@ export default function NovoAgente() {
                   <label className="block text-xs font-semibold text-[#1A1A24] mb-1.5">
                     Tipo do agente <span className="text-rose-500">*</span>
                   </label>
-                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-5 gap-2">
                     {(
                       [
                         { id: 'Atendimento', desc: 'FAQ e triagem geral' },
@@ -1575,7 +1584,7 @@ export default function NovoAgente() {
               <Button
                 variant="ghost"
                 onClick={() => handleSave(false)}
-                className="rounded-xl text-xs h-9 px-3 text-[#5F5F6B] hover:text-[#1A1A24] hidden sm:inline-flex items-center gap-1"
+                className="rounded-xl text-xs h-9 px-3 text-[#5F5F6B] hover:text-[#1A1A24] inline-flex items-center gap-1"
               >
                 <Save className="w-3.5 h-3.5" />
                 <span>{isEditMode ? 'Salvar alterações' : 'Salvar rascunho'}</span>

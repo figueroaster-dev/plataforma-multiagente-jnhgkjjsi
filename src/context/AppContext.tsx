@@ -25,9 +25,11 @@ interface AppContextType {
   agents: Agent[]
   getAgentById: (id: string) => Agent | undefined
   updateAgent: (agent: Partial<Agent> & { id: string }) => void
+  deleteAgent: (id: string) => void
   createAgent: (
     agentData: Omit<Agent, 'id' | 'lastActivity' | 'conversationsCount'> & { id?: string },
   ) => Agent
+  syncKnowledgeBasesForAgent: (agentId: string, knowledgeIds: string[]) => void
 
   knowledgeBases: KnowledgeBase[]
   addKnowledgeBaseDemo: () => void
@@ -85,6 +87,40 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const updateAgent = (updated: Partial<Agent> & { id: string }) => {
     setAgents((prev) =>
       prev.map((item) => (item.id === updated.id ? { ...item, ...updated } : item)),
+    )
+  }
+
+  const deleteAgent = (id: string) => {
+    setAgents((prev) => prev.filter((item) => item.id !== id))
+    setKnowledgeBases((prev) =>
+      prev.map((kb) =>
+        kb.linkedAgentIds.includes(id)
+          ? { ...kb, linkedAgentIds: kb.linkedAgentIds.filter((agId) => agId !== id) }
+          : kb,
+      ),
+    )
+    toast({
+      title: 'Agente excluído',
+      description: 'O agente foi removido com sucesso. (Demonstração)',
+    })
+  }
+
+  const syncKnowledgeBasesForAgent = (agentId: string, knowledgeIds: string[]) => {
+    // Garante que todas as bases de conhecimento em knowledgeIds incluam o agente em linkedAgentIds
+    // e que as bases não listadas deixem de incluir este agente
+    setKnowledgeBases((prev) =>
+      prev.map((kb) => {
+        const shouldBeLinked = knowledgeIds.includes(kb.id)
+        const isCurrentlyLinked = kb.linkedAgentIds.includes(agentId)
+
+        if (shouldBeLinked && !isCurrentlyLinked) {
+          return { ...kb, linkedAgentIds: [...kb.linkedAgentIds, agentId] }
+        }
+        if (!shouldBeLinked && isCurrentlyLinked) {
+          return { ...kb, linkedAgentIds: kb.linkedAgentIds.filter((id) => id !== agentId) }
+        }
+        return kb
+      }),
     )
   }
 
@@ -348,7 +384,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }
 
   const updateConversationStatus = (convId: string, status: ConversationStatus) => {
-    setConversations((prev) => prev.map((c) => (c.id === convId ? { ...c, status } : c)))
+    setConversations((prev) =>
+      prev.map((c) => {
+        if (c.id !== convId) return c
+        const updated = { ...c, status, updatedAt: 'Agora' }
+        if (status === 'resolvida' && !c.tags.includes('resolvida')) {
+          updated.tags = [...c.tags, 'resolvida']
+        }
+        return updated
+      }),
+    )
     const statusLabels: Record<ConversationStatus, string> = {
       aberta: 'Aberta (Em andamento)',
       aguardando: 'Pendente (Aguardando)',
@@ -356,10 +401,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
     toast({
       title: 'Status atualizado',
-      description: `Status alterado para "${statusLabels[status]}". (Demonstração)`,
+      description: `Conversa marcada como "${statusLabels[status]}". (Demonstração)`,
     })
   }
-
   const addConversationTag = (convId: string, tag: string) => {
     const cleanTag = tag.trim()
     if (!cleanTag) return
@@ -427,7 +471,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         agents,
         getAgentById,
         updateAgent,
+        deleteAgent,
         createAgent,
+        syncKnowledgeBasesForAgent,
         knowledgeBases,
         addKnowledgeBaseDemo,
         createKnowledgeBase,
