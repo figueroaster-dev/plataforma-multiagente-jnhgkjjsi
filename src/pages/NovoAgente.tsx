@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react'
-import { useNavigate, useOutletContext } from 'react-router-dom'
+import { useState, useMemo, useEffect } from 'react'
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom'
 import {
   ArrowLeft,
   Save,
@@ -52,44 +52,144 @@ const WIZARD_STEPS: StepItem[] = [
 ]
 
 export default function NovoAgente() {
+  const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { toast } = useToast()
-  const { createAgent, knowledgeBases } = useApp()
+  const { createAgent, updateAgent, getAgentById, knowledgeBases } = useApp()
   const outletCtx = useOutletContext<{ toggleMobileMenu?: () => void }>()
+
+  // Existing agent if in edit mode
+  const existingAgent = id ? getAgentById(id) : undefined
+  const isEditMode = Boolean(id && existingAgent)
 
   // Step state
   const [currentStep, setCurrentStep] = useState(1)
   const [completedSteps, setCompletedSteps] = useState<number[]>([])
 
+  // Determine initial channelChoice from existing agent or default
+  const getInitialChannelChoice = (
+    channelType?: ChannelType,
+  ): 'whatsapp' | 'webchat' | 'nenhum' => {
+    if (channelType === 'whatsapp') return 'whatsapp'
+    if (channelType === 'webchat') return 'webchat'
+    return 'nenhum'
+  }
+
   // ETAPA 1: Perfil
-  const [name, setName] = useState('')
-  const [description, setDescription] = useState('')
-  const [purpose, setPurpose] = useState<AgentPurpose>('Atendimento')
-  const [channelChoice, setChannelChoice] = useState<'whatsapp' | 'webchat' | 'nenhum'>('whatsapp')
+  const [name, setName] = useState(existingAgent?.name || '')
+  const [description, setDescription] = useState(existingAgent?.description || '')
+  const [purpose, setPurpose] = useState<AgentPurpose>(existingAgent?.purpose || 'Atendimento')
+  const [channelChoice, setChannelChoice] = useState<'whatsapp' | 'webchat' | 'nenhum'>(
+    getInitialChannelChoice(existingAgent?.channelType),
+  )
 
   // ETAPA 2: Instruções
   const [instructions, setInstructions] = useState(
-    'Você é um assistente virtual atencioso e profissional. Responda em português do Brasil com clareza, empatia e brevidade. Caso não tenha certeza sobre um detalhe técnico ou contratual, ofereça transferir o contato para um atendente humano.',
+    existingAgent?.instructions ||
+      'Você é um assistente virtual atencioso e profissional. Responda em português do Brasil com clareza, empatia e brevidade. Caso não tenha certeza sobre um detalhe técnico ou contratual, ofereça transferir o contato para um atendente humano.',
   )
   const [initialMessage, setInitialMessage] = useState(
-    'Olá! Eu sou o assistente virtual da equipe. Como posso ajudar você hoje?',
+    existingAgent?.initialMessage ||
+      'Olá! Eu sou o assistente virtual da equipe. Como posso ajudar você hoje?',
   )
   const [fallbackMessage, setFallbackMessage] = useState(
-    'Desculpe, ainda estou aprendendo sobre esse assunto específico. Posso verificar com nossa equipe ou transferir para um atendente.',
+    existingAgent?.fallbackMessage ||
+      'Desculpe, ainda estou aprendendo sobre esse assunto específico. Posso verificar com nossa equipe ou transferir para um atendente.',
   )
-  const [humanHandoffEnabled, setHumanHandoffEnabled] = useState(true)
+  const [humanHandoffEnabled, setHumanHandoffEnabled] = useState(
+    existingAgent?.humanHandoffEnabled ?? true,
+  )
 
   // ETAPA 3: Conhecimento
-  const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>([])
+  const [selectedKnowledgeIds, setSelectedKnowledgeIds] = useState<string[]>(
+    existingAgent?.knowledgeBaseIds || [],
+  )
 
   // ETAPA 4: Ferramentas e Integração API (Demonstração)
-  const [apiIntegrationEnabled, setApiIntegrationEnabled] = useState(false)
-  const [apiName, setApiName] = useState('Consulta de Pedido / Status')
-  const [apiMethod, setApiMethod] = useState<'GET' | 'POST' | 'PUT' | 'DELETE'>('GET')
-  const [apiUrl, setApiUrl] = useState('https://api.empresa.com.br/v1/pedidos/:id')
-  const [apiDescription, setApiDescription] = useState(
-    'Retorna o status do pedido, código de rastreio e data prevista de entrega.',
+  const [apiIntegrationEnabled, setApiIntegrationEnabled] = useState(
+    existingAgent?.apiIntegration?.enabled ?? false,
   )
+  const [apiName, setApiName] = useState(
+    existingAgent?.apiIntegration?.name || 'Consulta de Pedido / Status',
+  )
+  const [apiMethod, setApiMethod] = useState<'GET' | 'POST' | 'PUT' | 'DELETE'>(
+    existingAgent?.apiIntegration?.method || 'GET',
+  )
+  const [apiUrl, setApiUrl] = useState(
+    existingAgent?.apiIntegration?.url || 'https://api.empresa.com.br/v1/pedidos/:id',
+  )
+  const [apiDescription, setApiDescription] = useState(
+    existingAgent?.apiIntegration?.description ||
+      'Retorna o status do pedido, código de rastreio e data prevista de entrega.',
+  )
+
+  // Keep track of original values for dirty checking in edit mode
+  const [originalValues, setOriginalValues] = useState(() => ({
+    name: existingAgent?.name || '',
+    description: existingAgent?.description || '',
+    purpose: existingAgent?.purpose || 'Atendimento',
+    channelChoice: getInitialChannelChoice(existingAgent?.channelType),
+    instructions: existingAgent?.instructions || '',
+    initialMessage: existingAgent?.initialMessage || '',
+    fallbackMessage: existingAgent?.fallbackMessage || '',
+    humanHandoffEnabled: existingAgent?.humanHandoffEnabled ?? true,
+    knowledgeBaseIds: existingAgent?.knowledgeBaseIds
+      ? [...existingAgent.knowledgeBaseIds].sort().join(',')
+      : '',
+    apiIntegrationEnabled: existingAgent?.apiIntegration?.enabled ?? false,
+    apiName: existingAgent?.apiIntegration?.name || 'Consulta de Pedido / Status',
+    apiMethod: existingAgent?.apiIntegration?.method || 'GET',
+    apiUrl: existingAgent?.apiIntegration?.url || 'https://api.empresa.com.br/v1/pedidos/:id',
+    apiDescription: existingAgent?.apiIntegration?.description || '',
+  }))
+
+  // Re-sync if existingAgent changes or loads
+  useEffect(() => {
+    if (existingAgent) {
+      setName(existingAgent.name)
+      setDescription(existingAgent.description || '')
+      setPurpose(existingAgent.purpose)
+      setChannelChoice(getInitialChannelChoice(existingAgent.channelType))
+      setInstructions(
+        existingAgent.instructions ||
+          'Você é um assistente virtual atencioso e profissional. Responda em português do Brasil com clareza, empatia e brevidade. Caso não tenha certeza sobre um detalhe técnico ou contratual, ofereça transferir o contato para um atendente humano.',
+      )
+      setInitialMessage(
+        existingAgent.initialMessage ||
+          'Olá! Eu sou o assistente virtual da equipe. Como posso ajudar você hoje?',
+      )
+      setFallbackMessage(
+        existingAgent.fallbackMessage ||
+          'Desculpe, ainda estou aprendendo sobre esse assunto específico. Posso verificar com nossa equipe ou transferir para um atendente.',
+      )
+      setHumanHandoffEnabled(existingAgent.humanHandoffEnabled ?? true)
+      setSelectedKnowledgeIds(existingAgent.knowledgeBaseIds || [])
+      setApiIntegrationEnabled(existingAgent.apiIntegration?.enabled ?? false)
+      setApiName(existingAgent.apiIntegration?.name || 'Consulta de Pedido / Status')
+      setApiMethod(existingAgent.apiIntegration?.method || 'GET')
+      setApiUrl(existingAgent.apiIntegration?.url || 'https://api.empresa.com.br/v1/pedidos/:id')
+      setApiDescription(existingAgent.apiIntegration?.description || '')
+
+      setOriginalValues({
+        name: existingAgent.name,
+        description: existingAgent.description || '',
+        purpose: existingAgent.purpose,
+        channelChoice: getInitialChannelChoice(existingAgent.channelType),
+        instructions: existingAgent.instructions || '',
+        initialMessage: existingAgent.initialMessage || '',
+        fallbackMessage: existingAgent.fallbackMessage || '',
+        humanHandoffEnabled: existingAgent.humanHandoffEnabled ?? true,
+        knowledgeBaseIds: existingAgent.knowledgeBaseIds
+          ? [...existingAgent.knowledgeBaseIds].sort().join(',')
+          : '',
+        apiIntegrationEnabled: existingAgent.apiIntegration?.enabled ?? false,
+        apiName: existingAgent.apiIntegration?.name || 'Consulta de Pedido / Status',
+        apiMethod: existingAgent.apiIntegration?.method || 'GET',
+        apiUrl: existingAgent.apiIntegration?.url || 'https://api.empresa.com.br/v1/pedidos/:id',
+        apiDescription: existingAgent.apiIntegration?.description || '',
+      })
+    }
+  }, [id])
 
   // ETAPA 5: Teste e Chat Simulado
   const [testMessages, setTestMessages] = useState<
@@ -105,6 +205,27 @@ export default function NovoAgente() {
 
   // Track if user has modified anything
   const isDirty = useMemo(() => {
+    if (isEditMode) {
+      const currentKb = [...selectedKnowledgeIds].sort().join(',')
+      return (
+        name !== originalValues.name ||
+        description !== originalValues.description ||
+        purpose !== originalValues.purpose ||
+        channelChoice !== originalValues.channelChoice ||
+        instructions !== originalValues.instructions ||
+        initialMessage !== originalValues.initialMessage ||
+        fallbackMessage !== originalValues.fallbackMessage ||
+        humanHandoffEnabled !== originalValues.humanHandoffEnabled ||
+        currentKb !== originalValues.knowledgeBaseIds ||
+        apiIntegrationEnabled !== originalValues.apiIntegrationEnabled ||
+        apiName !== originalValues.apiName ||
+        apiMethod !== originalValues.apiMethod ||
+        apiUrl !== originalValues.apiUrl ||
+        apiDescription !== originalValues.apiDescription ||
+        currentStep > 1
+      )
+    }
+
     return (
       name.trim().length > 0 ||
       description.trim().length > 0 ||
@@ -112,7 +233,25 @@ export default function NovoAgente() {
       apiIntegrationEnabled ||
       currentStep > 1
     )
-  }, [name, description, selectedKnowledgeIds, apiIntegrationEnabled, currentStep])
+  }, [
+    isEditMode,
+    originalValues,
+    name,
+    description,
+    purpose,
+    channelChoice,
+    instructions,
+    initialMessage,
+    fallbackMessage,
+    humanHandoffEnabled,
+    selectedKnowledgeIds,
+    apiIntegrationEnabled,
+    apiName,
+    apiMethod,
+    apiUrl,
+    apiDescription,
+    currentStep,
+  ])
 
   // Reset or initialize test chat when entering step 5
   const initTestChatIfNeeded = () => {
@@ -133,6 +272,27 @@ export default function NovoAgente() {
       ])
     }
   }
+
+  // Se o agente existente for carregado ou alternado, inicializar chat de teste com sua mensagem
+  useEffect(() => {
+    if (existingAgent && testMessages.length === 0) {
+      const now = new Date()
+      const time = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(
+        2,
+        '0',
+      )}`
+      setTestMessages([
+        {
+          id: 'init-msg',
+          sender: 'agent',
+          text:
+            existingAgent.initialMessage?.trim() ||
+            `Olá! Sou o ${existingAgent.name}. Como posso ajudar você hoje?`,
+          time,
+        },
+      ])
+    }
+  }, [existingAgent])
 
   // Channel helper labels
   const getChannelDisplay = (
@@ -234,7 +394,7 @@ export default function NovoAgente() {
     )
   }
 
-  // Save Agent (as draft or final)
+  // Save Agent (as draft or final, in create or edit mode)
   const handleSave = (finalPublish = false) => {
     if (!validateCurrentStep(1)) {
       setCurrentStep(1)
@@ -248,6 +408,46 @@ export default function NovoAgente() {
 
     const channelInfo = getChannelDisplay(channelChoice)
 
+    if (isEditMode && existingAgent) {
+      // Modo edição: atualiza o agente existente preservando seu status atual
+      updateAgent({
+        id: existingAgent.id,
+        name: name.trim(),
+        purpose,
+        description:
+          description.trim() ||
+          `Agente de ${purpose} configurado para atuação via ${channelInfo.label}.`,
+        channel: channelInfo.label,
+        channelType: channelInfo.type,
+        status: existingAgent.status, // Preserva exatamente o status original (ativo, rascunho ou pausado)
+        instructions: instructions.trim(),
+        initialMessage: initialMessage.trim(),
+        fallbackMessage: fallbackMessage.trim(),
+        temperature: existingAgent.temperature ?? 0.3,
+        model: existingAgent.model ?? 'gpt-4o-mini',
+        knowledgeBaseIds: selectedKnowledgeIds,
+        humanHandoffEnabled,
+        apiIntegration: apiIntegrationEnabled
+          ? {
+              enabled: true,
+              name: apiName.trim(),
+              method: apiMethod,
+              url: apiUrl.trim(),
+              description: apiDescription.trim(),
+            }
+          : undefined,
+      })
+
+      toast({
+        title: 'Alterações salvas com sucesso!',
+        description: `O agente "${name.trim()}" foi atualizado mantendo seu status (${existingAgent.status}). (Demonstração)`,
+      })
+
+      navigate('/agentes')
+      return
+    }
+
+    // Modo criação: cria novo agente como rascunho
     const created = createAgent({
       name: name.trim(),
       purpose,
@@ -366,12 +566,16 @@ export default function NovoAgente() {
     <div className="flex-1 flex flex-col min-h-full pb-16">
       {/* Header com ações e badge discreto de demonstração */}
       <Header
-        title="Criar Novo Agente"
-        subtitle="Assistente guiado em 5 etapas com dados demonstrativos"
+        title={isEditMode ? `Configurar: ${existingAgent?.name || name}` : 'Criar Novo Agente'}
+        subtitle={
+          isEditMode
+            ? 'Edite as configurações do agente em 5 etapas mantendo seu status atual'
+            : 'Assistente guiado em 5 etapas com dados demonstrativos'
+        }
         breadcrumbs={[
           { label: 'Início', href: '/' },
           { label: 'Agentes', href: '/agentes' },
-          { label: 'Novo Agente' },
+          { label: isEditMode ? existingAgent?.name || 'Configurar' : 'Novo Agente' },
         ]}
         onToggleSidebar={outletCtx?.toggleMobileMenu}
         action={
@@ -381,6 +585,8 @@ export default function NovoAgente() {
               <span>Demonstração</span>
             </span>
 
+            {isEditMode && existingAgent && <StatusPill status={existingAgent.status} size="sm" />}
+
             <Button
               variant="outline"
               size="sm"
@@ -388,7 +594,7 @@ export default function NovoAgente() {
               className="rounded-xl border-[#E5E5EC] text-[#1A1A24] text-xs h-9 hidden sm:flex items-center gap-1.5"
             >
               <Save className="w-3.5 h-3.5 text-[#5F5F6B]" />
-              <span>Salvar rascunho</span>
+              <span>{isEditMode ? 'Salvar alterações' : 'Salvar rascunho'}</span>
             </Button>
 
             <Button
@@ -409,7 +615,7 @@ export default function NovoAgente() {
           <button
             type="button"
             onClick={handleCancel}
-            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5F5F6B] hover:text-[#7C5CFC] transition-colors"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-[#5F5F6B] hover:text-[#7C5CFC] transition-colors py-1 px-2 -ml-2 rounded-lg hover:bg-slate-100"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Voltar para Agentes</span>
@@ -438,7 +644,9 @@ export default function NovoAgente() {
               <div className="border-b border-[#E5E5EC] pb-4 flex items-start justify-between gap-4 flex-wrap">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-lg font-bold text-[#1A1A24]">Etapa 1: Perfil do Agente</h3>
+                    <h3 className="text-lg font-bold text-[#1A1A24]">
+                      {isEditMode ? 'Etapa 1: Perfil e Identificação' : 'Etapa 1: Perfil do Agente'}
+                    </h3>
                     <Badge
                       variant="outline"
                       className="text-[10px] text-[#7C5CFC] border-[#7C5CFC]/30 bg-[#F1EEFE]"
@@ -447,8 +655,9 @@ export default function NovoAgente() {
                     </Badge>
                   </div>
                   <p className="text-xs text-[#5F5F6B] mt-1">
-                    Defina o nome de exibição, a finalidade comercial ou de suporte e o canal
-                    demonstrativo.
+                    {isEditMode
+                      ? 'Revise e edite o nome de exibição, a finalidade comercial ou de suporte e o canal do agente.'
+                      : 'Defina o nome de exibição, a finalidade comercial ou de suporte e o canal demonstrativo.'}
                   </p>
                 </div>
               </div>
@@ -1154,9 +1363,16 @@ export default function NovoAgente() {
                       <h4 className="text-xs font-bold text-[#1A1A24] uppercase tracking-wider">
                         Resumo do Agente
                       </h4>
-                      <Badge className="bg-slate-100 text-slate-700 text-[10px] hover:bg-slate-100 font-semibold">
-                        Status: Rascunho
-                      </Badge>
+                      {isEditMode && existingAgent ? (
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-[#5F5F6B] font-medium">Status:</span>
+                          <StatusPill status={existingAgent.status} size="sm" />
+                        </div>
+                      ) : (
+                        <Badge className="bg-slate-100 text-slate-700 text-[10px] hover:bg-slate-100 font-semibold">
+                          Status: Rascunho
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Resumo Seção 1 */}
@@ -1295,7 +1511,11 @@ export default function NovoAgente() {
                       className="w-full bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl text-xs font-semibold h-10 shadow-sm gap-1.5"
                     >
                       <Check className="w-4 h-4" />
-                      <span>Concluir e Salvar como Rascunho</span>
+                      <span>
+                        {isEditMode
+                          ? 'Salvar e Concluir Alterações'
+                          : 'Concluir e Salvar como Rascunho'}
+                      </span>
                     </Button>
                     <Button
                       variant="outline"
@@ -1303,7 +1523,7 @@ export default function NovoAgente() {
                       className="w-full border-[#E5E5EC] text-[#1A1A24] hover:bg-slate-50 rounded-xl text-xs h-10 gap-1.5"
                     >
                       <Save className="w-3.5 h-3.5 text-[#5F5F6B]" />
-                      <span>Salvar Rascunho</span>
+                      <span>{isEditMode ? 'Salvar Alterações' : 'Salvar Rascunho'}</span>
                     </Button>
                   </div>
                 </div>
@@ -1329,7 +1549,7 @@ export default function NovoAgente() {
                 className="rounded-xl text-xs h-9 px-3 text-[#5F5F6B] hover:text-[#1A1A24] hidden sm:inline-flex items-center gap-1"
               >
                 <Save className="w-3.5 h-3.5" />
-                <span>Salvar rascunho</span>
+                <span>{isEditMode ? 'Salvar alterações' : 'Salvar rascunho'}</span>
               </Button>
             </div>
 
@@ -1347,7 +1567,7 @@ export default function NovoAgente() {
                   className="bg-[#7C5CFC] hover:bg-[#6A48E8] text-white rounded-xl text-xs font-semibold h-9 px-5 shadow-sm gap-1.5"
                 >
                   <Check className="w-4 h-4" />
-                  <span>Concluir Agente</span>
+                  <span>{isEditMode ? 'Salvar Alterações' : 'Concluir Agente'}</span>
                 </Button>
               )}
             </div>
@@ -1363,8 +1583,8 @@ export default function NovoAgente() {
               Descartar alterações?
             </AlertDialogTitle>
             <AlertDialogDescription className="text-xs text-[#5F5F6B]">
-              Você possui dados preenchidos no assistente de criação que ainda não foram salvos.
-              Deseja realmente sair e descartar essas informações?
+              Você possui dados modificados no assistente que ainda não foram salvos. Deseja
+              realmente sair e descartar essas informações?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="mt-4 gap-2">

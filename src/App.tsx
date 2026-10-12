@@ -10,7 +10,7 @@ import Layout from './components/Layout'
 import Index from './pages/Index'
 import Agentes from './pages/Agentes'
 import NovoAgente from './pages/NovoAgente'
-import ConfigAgente from './pages/ConfigAgente'
+
 import Conhecimento from './pages/Conhecimento'
 import Conversas from './pages/Conversas'
 import Canais from './pages/Canais'
@@ -29,7 +29,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/agentes" element={<Agentes />} />
             <Route path="/agentes/novo" element={<NovoAgente />} />
-            <Route path="/agentes/:id/configuracao" element={<ConfigAgente />} />
+            <Route path="/agentes/:id/configuracao" element={<NovoAgente />} />
             <Route path="/conhecimento" element={<Conhecimento />} />
             <Route path="/conversas" element={<Conversas />} />
             <Route path="/canais" element={<Canais />} />
