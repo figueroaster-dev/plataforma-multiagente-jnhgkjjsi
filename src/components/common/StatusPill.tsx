@@ -15,6 +15,13 @@ export type StatusType =
   | 'configuracao_futura'
   | 'conectado_demonstracao'
   | 'atencao_conexao'
+  | 'novo'
+  | 'qualificado'
+  | 'reuniao_agendada'
+  | 'proposta_enviada'
+  | 'em_negociacao'
+  | 'ganho'
+  | 'perdido'
 
 interface StatusPillProps {
   status: StatusType
@@ -101,6 +108,48 @@ const statusConfig: Record<StatusType, { label: string; bg: string; text: string
     bg: 'bg-amber-50 text-amber-800 border-amber-200/80',
     text: 'text-amber-800',
     dot: 'bg-amber-500 animate-pulse',
+  },
+  novo: {
+    label: 'Novo Lead',
+    bg: 'bg-indigo-50 text-indigo-700 border-indigo-200/60',
+    text: 'text-indigo-700',
+    dot: 'bg-indigo-500',
+  },
+  qualificado: {
+    label: 'Qualificado',
+    bg: 'bg-sky-50 text-sky-700 border-sky-200/60',
+    text: 'text-sky-700',
+    dot: 'bg-sky-500',
+  },
+  reuniao_agendada: {
+    label: 'Reunião Agendada',
+    bg: 'bg-purple-50 text-purple-700 border-purple-200/60',
+    text: 'text-purple-700',
+    dot: 'bg-purple-500',
+  },
+  proposta_enviada: {
+    label: 'Proposta Enviada',
+    bg: 'bg-amber-50 text-amber-700 border-amber-200/60',
+    text: 'text-amber-700',
+    dot: 'bg-amber-500',
+  },
+  em_negociacao: {
+    label: 'Em Negociação',
+    bg: 'bg-pink-50 text-pink-700 border-pink-200/60',
+    text: 'text-pink-700',
+    dot: 'bg-pink-500',
+  },
+  ganho: {
+    label: 'Ganho',
+    bg: 'bg-emerald-50 text-emerald-700 border-emerald-200/60',
+    text: 'text-emerald-700',
+    dot: 'bg-emerald-500',
+  },
+  perdido: {
+    label: 'Perdido',
+    bg: 'bg-slate-100 text-slate-600 border-slate-200',
+    text: 'text-slate-600',
+    dot: 'bg-slate-400',
   },
 }
 

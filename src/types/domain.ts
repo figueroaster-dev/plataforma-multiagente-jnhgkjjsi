@@ -183,3 +183,141 @@ export interface WorkspaceUser {
   initials: string
   addedAt: string
 }
+
+// ==========================================
+// MÓDULO CRM LEVE & DEMONSTRATIVO (ESTADO LOCAL)
+// ==========================================
+
+export type LeadStageId =
+  | 'novo'
+  | 'qualificado'
+  | 'reuniao_agendada'
+  | 'proposta_enviada'
+  | 'em_negociacao'
+  | 'ganho'
+  | 'perdido'
+
+export interface LeadStageConfig {
+  id: LeadStageId
+  label: string
+  color: string
+  badgeBg: string
+  order: number
+}
+
+export type LeadOrigin =
+  | 'WhatsApp'
+  | 'Chat do site'
+  | 'Instagram'
+  | 'Indicação'
+  | 'Campanha Meta Ads'
+  | 'Google Ads'
+  | 'Inbound Orgânico'
+  | 'Outbound'
+
+export interface LeadActivity {
+  id: string
+  type: 'reuniao' | 'ligacao' | 'whatsapp' | 'email' | 'proposta' | 'tarefa'
+  title: string
+  dueDate: string
+  status: 'pendente' | 'concluida'
+  assigneeName?: string
+}
+
+export interface LeadQualification {
+  segment?: string
+  budget?: string
+  decisionTimeline?: string
+  headcount?: string
+  score?: number // 0 a 100
+  needsSummary?: string
+}
+
+export interface Lead {
+  id: string
+  contactName: string
+  company: string
+  phone: string
+  email?: string
+  origin: LeadOrigin
+  assignedAgentId?: string
+  assignedAgentName?: string
+  assignedUserName?: string // Vendedor ou responsável da equipe
+  assignedUserId?: string
+  assignedTeam?: string // Ex: 'Vendas Enterprise', 'SDR Inbound', 'Closer Mid-Market'
+  stage: LeadStageId
+  estimatedValue: number // Ex: 12500
+  lastConversationText: string
+  lastConversationDate: string
+  linkedConversationId?: string
+  nextActivity?: LeadActivity
+  qualification?: LeadQualification
+  aiSummary?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export type CRMOperationMode =
+  | 'nativo' // Usar CRM nativo
+  | 'sincronizar_externo' // Sincronizar com CRM externo
+  | 'encaminhar_externo' // Encaminhar atendimento para ferramenta externa
+
+export type CRMProviderId =
+  | 'rd_station'
+  | 'hubspot'
+  | 'pipedrive'
+  | 'kommo'
+  | 'zendesk'
+  | 'freshdesk'
+
+export interface ExternalCRMCard {
+  id: CRMProviderId
+  name: string
+  category: 'crm' | 'helpdesk'
+  logo: string
+  description: string
+  connected: boolean
+  syncStatusText: string
+}
+
+export interface CRMFieldMapping {
+  platformField: string
+  crmField: string
+  required: boolean
+}
+
+export interface CRMEventsConfig {
+  onNewLead: boolean
+  onLeadQualified: boolean
+  onStageChange: boolean
+  onAssigneeChange: boolean
+  onConversationSummary: boolean
+  onConversationClosed: boolean
+}
+
+export type LeadDistributionRuleType =
+  | 'round_robin' // Roleta / Round-robin alternado
+  | 'por_equipe' // Distribuição direta por equipe
+  | 'por_vendedor' // Fixar em vendedor específico
+  | 'por_origem' // Ex: WhatsApp vai para Inbound, Site para SDR
+  | 'por_assunto' // Ex: Orçamento alto vai para Enterprise
+
+export interface LeadDistributionRule {
+  id: string
+  name: string
+  type: LeadDistributionRuleType
+  description: string
+  targetTeamOrUser: string
+  isActive: boolean
+}
+
+export interface CRMSettings {
+  mode: CRMOperationMode
+  activeProvider?: CRMProviderId
+  events: CRMEventsConfig
+  fieldMappings: CRMFieldMapping[]
+  distributionRules: LeadDistributionRule[]
+  unassignedQueueEnabled: boolean
+  unassignedQueueCount: number
+  lastSyncAt?: string
+}

@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
-import { useOutletContext } from 'react-router-dom'
+import { useOutletContext, useNavigate } from 'react-router-dom'
 import {
   MessageSquare,
   Search,
@@ -27,6 +27,9 @@ import {
   Sparkles,
   ArrowRight,
   SlidersHorizontal,
+  ExternalLink,
+  DollarSign,
+  TrendingUp,
 } from 'lucide-react'
 import { Header } from '@/components/layout/Header'
 import { StatusPill } from '@/components/common/StatusPill'
@@ -91,6 +94,12 @@ export default function Conversas() {
 
   // Mobile navigation views: 'list' | 'chat' | 'contact'
   const [mobileView, setMobileView] = useState<'list' | 'chat' | 'contact'>('list')
+
+  // Aba selecionada no painel lateral direito: 'contato' | 'lead'
+  const [rightPanelTab, setRightPanelTab] = useState<'lead' | 'contato'>('lead')
+
+  const navigate = useNavigate()
+  const { leads, leadStages, updateLeadStage, assignLeadOwner, getLeadByConversationId } = useApp()
 
   // Input de mensagem
   const [inputText, setInputText] = useState('')
@@ -772,211 +781,468 @@ export default function Conversas() {
         )}
 
         {/* ========================================================= */}
-        {/* COLUNA 3: Painel do Contato (Direita, 300px)               */}
+        {/* COLUNA 3: Painel Lateral Direito (Abas: Lead CRM / Contato) */}
         {/* ========================================================= */}
-        {activeConversation && (
-          <div
-            className={`w-full lg:w-[300px] xl:w-[320px] border-l border-[#E5E5EC] bg-white p-4 sm:p-5 flex flex-col space-y-4 shrink-0 overflow-y-auto ${
-              mobileView === 'contact' ? 'flex' : 'hidden lg:flex'
-            }`}
-          >
-            {/* Botão voltar para o chat no mobile */}
-            <div className="lg:hidden flex items-center justify-between pb-2 border-b border-[#E5E5EC]">
-              <button
-                type="button"
-                onClick={() => setMobileView('chat')}
-                className="flex items-center gap-1 text-xs font-semibold text-[#7C5CFC]"
+        {activeConversation &&
+          (() => {
+            const associatedLead = getLeadByConversationId(activeConversation.id)
+
+            return (
+              <div
+                className={`w-full lg:w-[320px] xl:w-[340px] border-l border-[#E5E5EC] bg-white p-4 sm:p-5 flex flex-col space-y-4 shrink-0 overflow-y-auto ${
+                  mobileView === 'contact' ? 'flex' : 'hidden lg:flex'
+                }`}
               >
-                <ChevronLeft className="w-4 h-4" />
-                Voltar à conversa
-              </button>
-              <Badge variant="outline" className="text-[10px] border-[#7C5CFC]/30 text-[#7C5CFC]">
-                Demonstração
-              </Badge>
-            </div>
-
-            {/* Cabeçalho do painel */}
-            <div className="flex items-center justify-between">
-              <h4 className="text-xs font-bold text-[#1A1A24] uppercase tracking-wider">
-                Painel do Contato
-              </h4>
-              <Badge
-                variant="outline"
-                className="text-[10px] border-amber-300 bg-amber-50 text-amber-800 font-medium"
-              >
-                Demonstração
-              </Badge>
-            </div>
-
-            {/* Card com dados do contato fictício */}
-            <div className="p-3.5 rounded-xl bg-[#FAF9FD] border border-[#E5E5EC] space-y-2.5 text-xs">
-              <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-full bg-[#7C5CFC] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
-                  {activeConversation.contactName.substring(0, 2).toUpperCase()}
+                {/* Botão voltar para o chat no mobile */}
+                <div className="lg:hidden flex items-center justify-between pb-2 border-b border-[#E5E5EC]">
+                  <button
+                    type="button"
+                    onClick={() => setMobileView('chat')}
+                    className="flex items-center gap-1 text-xs font-semibold text-[#7C5CFC]"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                    Voltar à conversa
+                  </button>
+                  <Badge
+                    variant="outline"
+                    className="text-[10px] border-[#7C5CFC]/30 text-[#7C5CFC]"
+                  >
+                    Demonstração
+                  </Badge>
                 </div>
-                <div className="min-w-0">
-                  <div className="font-bold text-sm text-[#1A1A24] truncate">
-                    {activeConversation.contactName}
+
+                {/* Seletor de Abas no Painel Direito: Lead Comercial vs Contato Geral */}
+                <div className="flex items-center p-1 bg-[#FAF9FD] rounded-xl border border-[#E5E5EC] shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setRightPanelTab('lead')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                      rightPanelTab === 'lead'
+                        ? 'bg-white text-[#7C5CFC] shadow-xs'
+                        : 'text-[#5F5F6B] hover:text-[#1A1A24]'
+                    }`}
+                  >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>Lead Comercial</span>
+                    {associatedLead && <span className="w-2 h-2 rounded-full bg-[#7C5CFC]" />}
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setRightPanelTab('contato')}
+                    className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-semibold transition-all ${
+                      rightPanelTab === 'contato'
+                        ? 'bg-white text-[#7C5CFC] shadow-xs'
+                        : 'text-[#5F5F6B] hover:text-[#1A1A24]'
+                    }`}
+                  >
+                    <User className="w-3.5 h-3.5" />
+                    <span>Dados Contato</span>
+                  </button>
+                </div>
+
+                {/* ======================================================== */}
+                {/* ABA 1: LEAD ASSOCIADO (CRM LEVE)                          */}
+                {/* ======================================================== */}
+                {rightPanelTab === 'lead' && (
+                  <div className="space-y-4">
+                    {/* Distinção Clara: Status da Conversa vs Etapa do Lead */}
+                    <div className="p-3 rounded-xl bg-slate-50 border border-[#E5E5EC] text-xs space-y-2">
+                      <div className="flex items-center justify-between text-[11px] text-[#5F5F6B]">
+                        <span>Status Atendimento (Chat):</span>
+                        <StatusPill
+                          status={activeConversation.status}
+                          size="sm"
+                          label={
+                            activeConversation.status === 'aberta'
+                              ? 'Aberta (Em andamento)'
+                              : activeConversation.status === 'aguardando'
+                                ? 'Pendente (Aguardando)'
+                                : 'Resolvida'
+                          }
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-[#5F5F6B] pt-1.5 border-t border-slate-200">
+                        <span>Etapa Comercial (CRM):</span>
+                        {associatedLead ? (
+                          <StatusPill
+                            status={associatedLead.stage}
+                            size="sm"
+                            label={
+                              leadStages.find((s) => s.id === associatedLead.stage)?.label ||
+                              associatedLead.stage
+                            }
+                          />
+                        ) : (
+                          <span className="text-[10px] text-[#9B9BAD]">Sem lead vinculado</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {associatedLead ? (
+                      <>
+                        {/* Card do Lead Comercial */}
+                        <div className="p-3.5 rounded-xl bg-[#FAF9FD] border border-[#E5E5EC] space-y-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#7C5CFC]">
+                                Oportunidade CRM
+                              </span>
+                              <h4 className="font-bold text-sm text-[#1A1A24] mt-0.5">
+                                {associatedLead.company}
+                              </h4>
+                            </div>
+
+                            <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                              R$ {associatedLead.estimatedValue.toLocaleString('pt-BR')}
+                            </span>
+                          </div>
+
+                          {/* Seletor Demonstrativo de Etapa Comercial */}
+                          <div>
+                            <label className="text-[11px] font-semibold text-[#5F5F6B] mb-1 block">
+                              Alterar Etapa do Lead (Demonstração):
+                            </label>
+                            <select
+                              value={associatedLead.stage}
+                              onChange={(e) =>
+                                updateLeadStage(associatedLead.id, e.target.value as any)
+                              }
+                              className="w-full bg-white border border-[#E5E5EC] rounded-xl text-xs py-1.5 px-2.5 text-[#1A1A24] font-medium focus:ring-[#7C5CFC] focus:outline-none"
+                            >
+                              {leadStages.map((st) => (
+                                <option key={st.id} value={st.id}>
+                                  {st.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Responsável Comercial */}
+                          <div className="space-y-1 pt-1 border-t border-[#E5E5EC]/60 text-xs">
+                            <div className="flex items-center justify-between text-[#5F5F6B]">
+                              <span>Vendedor responsável:</span>
+                              <strong className="text-[#1A1A24]">
+                                {associatedLead.assignedUserName || 'Não atribuído'}
+                              </strong>
+                            </div>
+                            <div className="flex items-center justify-between text-[#5F5F6B]">
+                              <span>Equipe de vendas:</span>
+                              <span className="text-[#7C5CFC] font-medium">
+                                {associatedLead.assignedTeam || 'Fila sem responsável'}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between text-[#5F5F6B]">
+                              <span>Origem do lead:</span>
+                              <span className="font-medium text-[#1A1A24]">
+                                {associatedLead.origin}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Link Direto para a Área de Leads */}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigate(`/leads?leadId=${associatedLead.id}`)}
+                            className="w-full rounded-xl border-[#7C5CFC]/30 text-[#7C5CFC] hover:bg-violet-50 text-xs font-semibold gap-1.5 h-8 mt-1"
+                          >
+                            <span>Abrir Lead na Área Leads</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+
+                        {/* Resumo Gerado pela IA (Fictício) */}
+                        {associatedLead.aiSummary && (
+                          <div className="p-3.5 rounded-xl bg-violet-50 border border-violet-200 space-y-1.5">
+                            <div className="flex items-center justify-between text-[#7C5CFC]">
+                              <div className="flex items-center gap-1.5 font-semibold text-xs">
+                                <Sparkles className="w-3.5 h-3.5" />
+                                <span>Resumo da IA (Fictício)</span>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className="text-[9px] border-[#7C5CFC]/30 bg-white text-[#7C5CFC]"
+                              >
+                                Demonstração
+                              </Badge>
+                            </div>
+                            <p className="text-[11px] text-violet-950 leading-relaxed">
+                              {associatedLead.aiSummary}
+                            </p>
+                          </div>
+                        )}
+
+                        {/* Campos de Qualificação Comercial */}
+                        {associatedLead.qualification && (
+                          <div className="p-3 rounded-xl border border-[#E5E5EC] bg-[#FAF9FD] space-y-2 text-xs">
+                            <div className="flex items-center justify-between font-semibold text-[#1A1A24]">
+                              <span>Qualificação Comercial</span>
+                              {associatedLead.qualification.score && (
+                                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-100 text-emerald-800">
+                                  Score: {associatedLead.qualification.score}/100
+                                </span>
+                              )}
+                            </div>
+                            <div className="space-y-1.5 text-[11px] text-[#5F5F6B]">
+                              {associatedLead.qualification.segment && (
+                                <div className="flex justify-between">
+                                  <span className="text-[#9B9BAD]">Segmento:</span>
+                                  <strong className="text-[#1A1A24]">
+                                    {associatedLead.qualification.segment}
+                                  </strong>
+                                </div>
+                              )}
+                              {associatedLead.qualification.headcount && (
+                                <div className="flex justify-between">
+                                  <span className="text-[#9B9BAD]">Porte:</span>
+                                  <strong className="text-[#1A1A24]">
+                                    {associatedLead.qualification.headcount}
+                                  </strong>
+                                </div>
+                              )}
+                              {associatedLead.qualification.budget && (
+                                <div className="flex justify-between">
+                                  <span className="text-[#9B9BAD]">Orçamento:</span>
+                                  <strong className="text-[#1A1A24]">
+                                    {associatedLead.qualification.budget}
+                                  </strong>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Próxima Atividade */}
+                        {associatedLead.nextActivity && (
+                          <div className="p-3 rounded-xl border border-[#E5E5EC] bg-white space-y-1.5 text-xs">
+                            <div className="flex items-center justify-between font-semibold text-[#1A1A24]">
+                              <span className="flex items-center gap-1.5">
+                                <Calendar className="w-3.5 h-3.5 text-[#7C5CFC]" />
+                                Próxima Atividade
+                              </span>
+                              <span className="text-[10px] text-[#7C5CFC] font-medium">
+                                {associatedLead.nextActivity.dueDate}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-[#5F5F6B] leading-snug">
+                              {associatedLead.nextActivity.title}
+                            </p>
+                            <div className="text-[10px] text-[#9B9BAD] pt-1 border-t border-slate-100 flex items-center justify-between">
+                              <span>Responsável:</span>
+                              <span className="font-medium text-[#1A1A24]">
+                                {associatedLead.nextActivity.assigneeName || 'Equipe'}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="p-5 text-center bg-[#FAF9FD] border border-dashed border-[#E5E5EC] rounded-2xl space-y-2">
+                        <TrendingUp className="w-7 h-7 text-[#9B9BAD] mx-auto stroke-1" />
+                        <p className="text-xs font-medium text-[#1A1A24]">
+                          Nenhum lead vinculado a esta conversa
+                        </p>
+                        <p className="text-[11px] text-[#9B9BAD] leading-relaxed">
+                          Você pode criar ou vincular oportunidades acessando a área de Leads no
+                          menu lateral.
+                        </p>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate('/leads')}
+                          className="rounded-xl border-[#7C5CFC]/30 text-[#7C5CFC] text-xs h-8 mt-1"
+                        >
+                          Ir para Leads
+                        </Button>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-[11px] text-[#5F5F6B] truncate">
-                    {activeConversation.contactDetails?.company || 'Empresa Cliente Fictícia'}
-                  </div>
-                </div>
-              </div>
+                )}
 
-              <div className="pt-2 border-t border-[#E5E5EC]/60 space-y-2">
-                <div className="flex items-center gap-2 text-[#5F5F6B]">
-                  <Phone className="w-3.5 h-3.5 text-[#9B9BAD] shrink-0" />
-                  <span className="truncate">
-                    {activeConversation.contactDetails?.phone ||
-                      activeConversation.contactPhoneOrEmail}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-[#5F5F6B]">
-                  <Mail className="w-3.5 h-3.5 text-[#9B9BAD] shrink-0" />
-                  <span className="truncate">
-                    {activeConversation.contactDetails?.email ||
-                      activeConversation.contactPhoneOrEmail}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 text-[#5F5F6B]">
-                  <Radio className="w-3.5 h-3.5 text-[#7C5CFC] shrink-0" />
-                  <span>
-                    Canal: <strong>{activeConversation.channel}</strong>
-                  </span>
-                </div>
-                {activeConversation.contactDetails?.location && (
-                  <div className="flex items-center gap-2 text-[#5F5F6B]">
-                    <MapPin className="w-3.5 h-3.5 text-[#9B9BAD] shrink-0" />
-                    <span className="truncate">{activeConversation.contactDetails.location}</span>
+                {/* ======================================================== */}
+                {/* ABA 2: DADOS DO CONTATO (ORIGINAL)                        */}
+                {/* ======================================================== */}
+                {rightPanelTab === 'contato' && (
+                  <div className="space-y-4">
+                    {/* Card com dados do contato fictício */}
+                    <div className="p-3.5 rounded-xl bg-[#FAF9FD] border border-[#E5E5EC] space-y-2.5 text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-full bg-[#7C5CFC] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs">
+                          {activeConversation.contactName.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-bold text-sm text-[#1A1A24] truncate">
+                            {activeConversation.contactName}
+                          </div>
+                          <div className="text-[11px] text-[#5F5F6B] truncate">
+                            {activeConversation.contactDetails?.company ||
+                              'Empresa Cliente Fictícia'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-[#E5E5EC]/60 space-y-2">
+                        <div className="flex items-center gap-2 text-[#5F5F6B]">
+                          <Phone className="w-3.5 h-3.5 text-[#9B9BAD] shrink-0" />
+                          <span className="truncate">
+                            {activeConversation.contactDetails?.phone ||
+                              activeConversation.contactPhoneOrEmail}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[#5F5F6B]">
+                          <Mail className="w-3.5 h-3.5 text-[#9B9BAD] shrink-0" />
+                          <span className="truncate">
+                            {activeConversation.contactDetails?.email ||
+                              activeConversation.contactPhoneOrEmail}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2 text-[#5F5F6B]">
+                          <Radio className="w-3.5 h-3.5 text-[#7C5CFC] shrink-0" />
+                          <span>
+                            Canal: <strong>{activeConversation.channel}</strong>
+                          </span>
+                        </div>
+                        {activeConversation.contactDetails?.location && (
+                          <div className="flex items-center gap-2 text-[#5F5F6B]">
+                            <MapPin className="w-3.5 h-3.5 text-[#9B9BAD] shrink-0" />
+                            <span className="truncate">
+                              {activeConversation.contactDetails.location}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Seção de Etiquetas (Tags) com Adicionar/Remover */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5 text-[#7C5CFC]" />
+                          <span>Etiquetas</span>
+                        </h4>
+                        <button
+                          type="button"
+                          onClick={() => setIsAddTagOpen(true)}
+                          className="text-[11px] text-[#7C5CFC] hover:underline font-semibold flex items-center gap-0.5"
+                        >
+                          <Plus className="w-3 h-3" />
+                          Adicionar
+                        </button>
+                      </div>
+
+                      {activeConversation.tags.length === 0 ? (
+                        <p className="text-xs text-[#9B9BAD] italic bg-slate-50 p-2.5 rounded-lg border border-[#E5E5EC]">
+                          Nenhuma etiqueta atribuída.
+                        </p>
+                      ) : (
+                        <div className="flex flex-wrap gap-1.5">
+                          {activeConversation.tags.map((tag, i) => (
+                            <span
+                              key={i}
+                              className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#F1EEFE] text-[#7C5CFC] border border-[#7C5CFC]/20 group transition-all"
+                            >
+                              <span>{tag}</span>
+                              <button
+                                type="button"
+                                onClick={() => removeConversationTag(activeConversation.id, tag)}
+                                className="hover:text-rose-600 rounded p-0.2"
+                                title={`Remover etiqueta "${tag}"`}
+                              >
+                                <X className="w-3 h-3" />
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Atribuição Vigente */}
+                    <div>
+                      <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-2">
+                        Atribuição Atual
+                      </h4>
+                      <div className="space-y-2">
+                        {/* Agente de IA */}
+                        <div className="p-2.5 rounded-xl border border-[#E5E5EC] flex items-center justify-between bg-white text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-[#F1EEFE] text-[#7C5CFC] flex items-center justify-center shrink-0">
+                              <Bot className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-[#1A1A24] truncate">
+                                {activeConversation.assignedAgentName}
+                              </div>
+                              <div className="text-[10px] text-[#9B9BAD]">Agente de IA</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Atendente Humano */}
+                        <div className="p-2.5 rounded-xl border border-[#E5E5EC] flex items-center justify-between bg-white text-xs">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+                              <UserCheck className="w-4 h-4" />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="font-semibold text-[#1A1A24] truncate">
+                                {activeConversation.assignedHumanName || 'Nenhum atendente'}
+                              </div>
+                              <div className="text-[10px] text-[#9B9BAD]">
+                                {activeConversation.assignedHumanName
+                                  ? 'Operador Ativo'
+                                  : 'Atuação 100% IA'}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Histórico Resumido do Contato */}
+                    <div>
+                      <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                        <History className="w-3.5 h-3.5 text-[#5F5F6B]" />
+                        <span>Histórico do Contato</span>
+                      </h4>
+                      <div className="p-3 rounded-xl bg-slate-50 border border-[#E5E5EC] space-y-2 text-xs">
+                        <div className="flex items-center justify-between text-[#5F5F6B]">
+                          <span>Total de atendimentos:</span>
+                          <span className="font-semibold text-[#1A1A24]">
+                            {activeConversation.contactDetails?.totalPreviousConversations || 1}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[#5F5F6B]">
+                          <span>Primeira interação:</span>
+                          <span className="font-semibold text-[#1A1A24]">
+                            {activeConversation.contactDetails?.firstInteractionDate || 'Hoje'}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between text-[#5F5F6B]">
+                          <span>Canal preferencial:</span>
+                          <span className="font-semibold text-[#7C5CFC]">
+                            {activeConversation.channel}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Resumo da Demanda / Notas */}
+                    <div>
+                      <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-1.5">
+                        Resumo da Demanda
+                      </h4>
+                      <p className="text-xs text-[#5F5F6B] leading-relaxed p-3 rounded-xl bg-[#FAF9FD] border border-[#E5E5EC]">
+                        {activeConversation.summaryNotes ||
+                          'Sem anotações adicionais registradas para este atendimento.'}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Seção de Etiquetas (Tags) com Adicionar/Remover */}
-            <div>
-              <div className="flex items-center justify-between mb-2">
-                <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider flex items-center gap-1.5">
-                  <Tag className="w-3.5 h-3.5 text-[#7C5CFC]" />
-                  <span>Etiquetas</span>
-                </h4>
-                <button
-                  type="button"
-                  onClick={() => setIsAddTagOpen(true)}
-                  className="text-[11px] text-[#7C5CFC] hover:underline font-semibold flex items-center gap-0.5"
-                >
-                  <Plus className="w-3 h-3" />
-                  Adicionar
-                </button>
-              </div>
-
-              {activeConversation.tags.length === 0 ? (
-                <p className="text-xs text-[#9B9BAD] italic bg-slate-50 p-2.5 rounded-lg border border-[#E5E5EC]">
-                  Nenhuma etiqueta atribuída.
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-1.5">
-                  {activeConversation.tags.map((tag, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-md bg-[#F1EEFE] text-[#7C5CFC] border border-[#7C5CFC]/20 group transition-all"
-                    >
-                      <span>{tag}</span>
-                      <button
-                        type="button"
-                        onClick={() => removeConversationTag(activeConversation.id, tag)}
-                        className="hover:text-rose-600 rounded p-0.2"
-                        title={`Remover etiqueta "${tag}"`}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Atribuição Vigente */}
-            <div>
-              <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-2">
-                Atribuição Atual
-              </h4>
-              <div className="space-y-2">
-                {/* Agente de IA */}
-                <div className="p-2.5 rounded-xl border border-[#E5E5EC] flex items-center justify-between bg-white text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-lg bg-[#F1EEFE] text-[#7C5CFC] flex items-center justify-center shrink-0">
-                      <Bot className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[#1A1A24] truncate">
-                        {activeConversation.assignedAgentName}
-                      </div>
-                      <div className="text-[10px] text-[#9B9BAD]">Agente de IA</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Atendente Humano */}
-                <div className="p-2.5 rounded-xl border border-[#E5E5EC] flex items-center justify-between bg-white text-xs">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
-                      <UserCheck className="w-4 h-4" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="font-semibold text-[#1A1A24] truncate">
-                        {activeConversation.assignedHumanName || 'Nenhum atendente'}
-                      </div>
-                      <div className="text-[10px] text-[#9B9BAD]">
-                        {activeConversation.assignedHumanName
-                          ? 'Operador Ativo'
-                          : 'Atuação 100% IA'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Histórico Resumido do Contato */}
-            <div>
-              <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                <History className="w-3.5 h-3.5 text-[#5F5F6B]" />
-                <span>Histórico do Contato</span>
-              </h4>
-              <div className="p-3 rounded-xl bg-slate-50 border border-[#E5E5EC] space-y-2 text-xs">
-                <div className="flex items-center justify-between text-[#5F5F6B]">
-                  <span>Total de atendimentos:</span>
-                  <span className="font-semibold text-[#1A1A24]">
-                    {activeConversation.contactDetails?.totalPreviousConversations || 1}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[#5F5F6B]">
-                  <span>Primeira interação:</span>
-                  <span className="font-semibold text-[#1A1A24]">
-                    {activeConversation.contactDetails?.firstInteractionDate || 'Hoje'}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-[#5F5F6B]">
-                  <span>Canal preferencial:</span>
-                  <span className="font-semibold text-[#7C5CFC]">{activeConversation.channel}</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Resumo da Demanda / Notas */}
-            <div>
-              <h4 className="text-xs font-semibold text-[#1A1A24] uppercase tracking-wider mb-1.5">
-                Resumo da Demanda
-              </h4>
-              <p className="text-xs text-[#5F5F6B] leading-relaxed p-3 rounded-xl bg-[#FAF9FD] border border-[#E5E5EC]">
-                {activeConversation.summaryNotes ||
-                  'Sem anotações adicionais registradas para este atendimento.'}
-              </p>
-            </div>
-          </div>
-        )}
+            )
+          })()}
       </div>
 
       {/* Dialog Modal: Adicionar Etiqueta */}

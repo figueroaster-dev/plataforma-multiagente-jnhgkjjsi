@@ -13,6 +13,7 @@ import NovoAgente from './pages/NovoAgente'
 
 import Conhecimento from './pages/Conhecimento'
 import Conversas from './pages/Conversas'
+import Leads from './pages/Leads'
 import Canais from './pages/Canais'
 import Integracoes from './pages/Integracoes'
 import Relatorios from './pages/Relatorios'
@@ -32,6 +33,7 @@ const App = () => (
             <Route path="/agentes/:id/configuracao" element={<NovoAgente />} />
             <Route path="/conhecimento" element={<Conhecimento />} />
             <Route path="/conversas" element={<Conversas />} />
+            <Route path="/leads" element={<Leads />} />
             <Route path="/canais" element={<Canais />} />
             <Route path="/integracoes" element={<Integracoes />} />
             <Route path="/relatorios" element={<Relatorios />} />

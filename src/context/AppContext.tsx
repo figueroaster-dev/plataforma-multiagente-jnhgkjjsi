@@ -9,6 +9,12 @@ import {
   WorkspaceUser,
   WhatsAppConnectionConfig,
   CompanyAISettings,
+  Lead,
+  LeadStageId,
+  LeadStageConfig,
+  CRMSettings,
+  CRMOperationMode,
+  CRMProviderId,
 } from '@/types/domain'
 import {
   INITIAL_WORKSPACES,
@@ -18,6 +24,9 @@ import {
   WORKSPACE_USERS,
   INITIAL_COMPANY_AI_SETTINGS,
   INITIAL_WHATSAPP_CONNECTIONS,
+  DEFAULT_LEAD_STAGES,
+  INITIAL_LEADS,
+  INITIAL_CRM_SETTINGS,
 } from '@/data/mockData'
 import { useToast } from '@/hooks/use-toast'
 
@@ -78,6 +87,26 @@ interface AppContextType {
     latencyMs: number
     message: string
   }>
+
+  // ==========================================
+  // CRM NATIVO & LEADS (DEMONSTRATIVO)
+  // ==========================================
+  leads: Lead[]
+  leadStages: LeadStageConfig[]
+  selectedLeadId: string | null
+  setSelectedLeadId: (id: string | null) => void
+  getLeadById: (id: string) => Lead | undefined
+  getLeadByConversationId: (conversationId: string) => Lead | undefined
+  updateLeadStage: (leadId: string, newStage: LeadStageId) => void
+  assignLeadOwner: (
+    leadId: string,
+    options: { userId?: string; userName?: string; team?: string },
+  ) => void
+  updateLead: (leadId: string, updates: Partial<Lead>) => void
+  createLead: (lead: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>) => Lead
+  crmSettings: CRMSettings
+  updateCRMSettings: (settings: Partial<CRMSettings>) => void
+  simulateCRMSync: (providerId?: CRMProviderId) => Promise<{ success: boolean; message: string }>
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined)
@@ -97,6 +126,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [companyAISettings, setCompanyAISettings] = useState<CompanyAISettings>(
     INITIAL_COMPANY_AI_SETTINGS,
   )
+
+  // CRM State
+  const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS)
+  const [leadStages] = useState<LeadStageConfig[]>(DEFAULT_LEAD_STAGES)
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null)
+  const [crmSettings, setCrmSettings] = useState<CRMSettings>(INITIAL_CRM_SETTINGS)
 
   const currentWorkspace = workspaces.find((w) => w.id === currentWorkspaceId) || workspaces[0]
 
@@ -543,6 +578,132 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }
 
+  // ==========================================
+  // AÇÕES DO CRM LEVE (DEMONSTRATIVO)
+  // ==========================================
+
+  const getLeadById = (id: string) => leads.find((l) => l.id === id)
+
+  const getLeadByConversationId = (conversationId: string) =>
+    leads.find((l) => l.linkedConversationId === conversationId)
+
+  const updateLeadStage = (leadId: string, newStage: LeadStageId) => {
+    const targetLead = leads.find((l) => l.id === leadId)
+    const stageConf = leadStages.find((s) => s.id === newStage)
+    if (!targetLead) return
+
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, stage: newStage, updatedAt: 'Agora' } : l)),
+    )
+
+    toast({
+      title: 'Etapa do Lead alterada (Demonstração)',
+      description: `"${targetLead.contactName}" avançou para "${stageConf?.label || newStage}". Atualizado instantaneamente.`,
+    })
+  }
+
+  const assignLeadOwner = (
+    leadId: string,
+    options: { userId?: string; userName?: string; team?: string },
+  ) => {
+    const targetLead = leads.find((l) => l.id === leadId)
+    if (!targetLead) return
+
+    setLeads((prev) =>
+      prev.map((l) => {
+        if (l.id === leadId) {
+          return {
+            ...l,
+            assignedUserId: options.userId,
+            assignedUserName: options.userName,
+            assignedTeam: options.team || l.assignedTeam,
+            updatedAt: 'Agora',
+          }
+        }
+        return l
+      }),
+    )
+
+    toast({
+      title: 'Responsável atribuído (Demonstração)',
+      description: `Lead "${targetLead.contactName}" agora está sob responsabilidade de ${
+        options.userName || options.team || 'equipe'
+      }.`,
+    })
+  }
+
+  const updateLead = (leadId: string, updates: Partial<Lead>) => {
+    setLeads((prev) =>
+      prev.map((l) => (l.id === leadId ? { ...l, ...updates, updatedAt: 'Agora' } : l)),
+    )
+    toast({
+      title: 'Lead atualizado (Demonstração)',
+      description: 'Alterações no registro comercial gravadas no estado local.',
+    })
+  }
+
+  const createLead = (leadData: Omit<Lead, 'id' | 'createdAt' | 'updatedAt'>): Lead => {
+    const newId = `lead-${Date.now().toString(36)}`
+    const newLead: Lead = {
+      ...leadData,
+      id: newId,
+      createdAt: 'Hoje',
+      updatedAt: 'Agora mesmo',
+    }
+    setLeads((prev) => [newLead, ...prev])
+    toast({
+      title: 'Novo Lead cadastrado (Demonstração)',
+      description: `"${newLead.contactName}" foi adicionado com sucesso ao CRM nativo.`,
+    })
+    return newLead
+  }
+
+  const updateCRMSettings = (settings: Partial<CRMSettings>) => {
+    setCrmSettings((prev) => ({
+      ...prev,
+      ...settings,
+    }))
+    toast({
+      title: 'Configurações de CRM salvas (Demonstração)',
+      description: 'Preferências de integração e regras de distribuição gravadas no protótipo.',
+    })
+  }
+
+  const simulateCRMSync = async (
+    providerId?: CRMProviderId,
+  ): Promise<{ success: boolean; message: string }> => {
+    const provName =
+      providerId === 'rd_station'
+        ? 'RD Station CRM'
+        : providerId === 'hubspot'
+          ? 'HubSpot'
+          : providerId === 'pipedrive'
+            ? 'Pipedrive'
+            : providerId === 'kommo'
+              ? 'Kommo'
+              : providerId === 'zendesk'
+                ? 'Zendesk'
+                : providerId === 'freshdesk'
+                  ? 'Freshdesk'
+                  : 'CRM Externo'
+
+    const now = new Date()
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(
+      2,
+      '0',
+    )}`
+
+    setCrmSettings((prev) => ({
+      ...prev,
+      lastSyncAt: `Hoje às ${timeStr} (Simulado)`,
+    }))
+
+    return {
+      success: true,
+      message: `Sincronização simulada com sucesso com ${provName}! ${leads.length} leads mapeados e atualizados sem chamadas externas.`,
+    }
+  }
+
   return (
     <AppContext.Provider
       value={{
@@ -581,6 +742,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         companyAISettings,
         updateCompanyAISettings,
         testAIConnectionSimulation,
+        leads,
+        leadStages,
+        selectedLeadId,
+        setSelectedLeadId,
+        getLeadById,
+        getLeadByConversationId,
+        updateLeadStage,
+        assignLeadOwner,
+        updateLead,
+        createLead,
+        crmSettings,
+        updateCRMSettings,
+        simulateCRMSync,
       }}
     >
       {children}

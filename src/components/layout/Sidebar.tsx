@@ -14,6 +14,7 @@ import {
   User,
   ShieldCheck,
   Check,
+  UserCheck,
 } from 'lucide-react'
 import { APP_CONFIG, DEFAULT_USER } from '@/constants/app'
 import { useApp } from '@/context/AppContext'
@@ -40,6 +41,7 @@ const navItems = [
   { to: '/conhecimento', label: 'Conhecimento', icon: BookOpen },
   { to: '/canais', label: 'Canais', icon: Radio },
   { to: '/conversas', label: 'Conversas', icon: MessageSquare },
+  { to: '/leads', label: 'Leads', icon: UserCheck },
   { to: '/integracoes', label: 'Integrações', icon: Plug },
   { to: '/relatorios', label: 'Relatórios', icon: BarChart3 },
   { to: '/configuracoes', label: 'Configurações', icon: Settings },
